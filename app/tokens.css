@@ -1,0 +1,178 @@
+/* astra — design tokens
+ *
+ * Single source of truth for every visual constant in the system.
+ * Every color, every font size, every motion curve, every shadow —
+ * if it appears in the UI, it's defined here.
+ *
+ * Editing rules:
+ * - Tokens are named by ROLE, not by value. "--glow-primary" not "--white".
+ * - If you find yourself adding a color, stop. Use an existing one.
+ * - Opacity is your friend. Use --glow-primary with opacity instead of
+ *   inventing a new token.
+ */
+
+:root {
+  /* ─── Canvas ──────────────────────────────────────────────── */
+  /* The abyss. These three define the entire dark background. */
+
+  --abyss-0: #02040a;        /* The deepest point. Edges of canvas. */
+  --abyss-1: #060a15;        /* Main canvas surface. */
+  --abyss-2: #0b1220;        /* Elevated surfaces (floating panels). */
+  --abyss-3: #131d30;        /* Tooltips, command palette bg. */
+
+  /* ─── Glow ────────────────────────────────────────────────── */
+  /* Pure white in different intensities is the entire color system. */
+
+  --glow-primary: rgba(255, 255, 255, 0.94);  /* Primary text, active agent */
+  --glow-elevated: rgba(255, 255, 255, 0.82); /* Headings in secondary position */
+  --glow-body: rgba(255, 255, 255, 0.64);     /* Default body text */
+  --glow-muted: rgba(255, 255, 255, 0.42);    /* Labels, timestamps */
+  --glow-whisper: rgba(255, 255, 255, 0.22);  /* Dividers, idle agents */
+  --glow-trace: rgba(255, 255, 255, 0.08);    /* Ambient hints, grid lines */
+  --glow-void: rgba(255, 255, 255, 0.02);     /* Almost invisible, but present */
+
+  /* ─── Alarm ───────────────────────────────────────────────── */
+  /* Used exactly once: when something is wrong. Never decorative. */
+
+  --alarm: #F97066;
+  --alarm-glow: rgba(249, 112, 102, 0.35);
+
+  /* ─── Luminance ───────────────────────────────────────────── */
+  /* For orbs and living elements. These create the bioluminescent feel. */
+
+  --halo-soft: 0 0 24px rgba(255, 255, 255, 0.12),
+               0 0 48px rgba(255, 255, 255, 0.04);
+  --halo-active: 0 0 32px rgba(255, 255, 255, 0.28),
+                 0 0 72px rgba(255, 255, 255, 0.12),
+                 0 0 120px rgba(255, 255, 255, 0.04);
+  --halo-pulse: 0 0 40px rgba(255, 255, 255, 0.48),
+                0 0 96px rgba(255, 255, 255, 0.18),
+                0 0 160px rgba(255, 255, 255, 0.06);
+
+  /* ─── Typography ──────────────────────────────────────────── */
+  /* Premium fonts specified for production. Graceful fallbacks first. */
+
+  /* Typeface roles — see DESIGN.md §reading for philosophy.
+     Next.js injects --font-display, --font-interface, --font-mono
+     as the loaded webfont names. We chain our premium-ready fallbacks
+     after so swapping in PP Editorial New / GT America / Berkeley Mono
+     is a one-line change later. */
+  --font-display: var(--font-display-base), "PP Editorial New", "Instrument Serif",
+                  "Canela", "Tiempos Headline", Georgia, serif;
+  --font-interface: var(--font-interface-base), "GT America", "Söhne", "Geist",
+                    "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: var(--font-mono-base), "Berkeley Mono", "Commit Mono", "JetBrains Mono",
+               "IBM Plex Mono", "SF Mono", "Menlo", monospace;
+
+  /* Scale — doubling scale with intentional gaps.
+   * Values chosen for editorial typography: 11 for mono labels,
+   * 15 for body (slightly larger than standard 14 for readability),
+   * then a big jump to display sizes. */
+
+  --text-micro: 10px;    /* Mono labels only */
+  --text-label: 11px;    /* Small labels, timestamps */
+  --text-caption: 13px;  /* Captions, secondary text */
+  --text-body: 15px;     /* Body text */
+  --text-lede: 18px;     /* First paragraph, emphasis */
+  --text-subhead: 22px;  /* Section subheads */
+  --text-head: 32px;     /* Section heads (sans-serif) */
+  --text-display-s: 48px;  /* Small display (serif italic) */
+  --text-display: 72px;    /* Display (serif italic) */
+  --text-display-l: 128px; /* Hero (serif italic) */
+  --text-display-xl: 200px; /* Brand moment */
+
+  /* Line heights — editorial typography uses wider than usual */
+  --leading-tight: 1.08;     /* For display serif */
+  --leading-head: 1.18;      /* For section heads */
+  --leading-body: 1.62;      /* For body copy (slightly generous) */
+  --leading-mono: 1.5;       /* For monospace */
+
+  /* Letter spacing — editorial fonts need little, mono needs some */
+  --tracking-display: -0.02em;    /* Tighten display serif */
+  --tracking-head: -0.01em;
+  --tracking-body: 0;
+  --tracking-mono: 0.01em;
+  --tracking-micro: 0.08em;       /* For micro uppercase labels */
+
+  /* ─── Space ───────────────────────────────────────────────── */
+  /* 8-point grid. All spacing derives from this. */
+
+  --space-0: 0;
+  --space-0-5: 2px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+  --space-20: 80px;
+  --space-24: 96px;
+  --space-32: 128px;
+  --space-40: 160px;
+  --space-48: 192px;
+
+  /* ─── Motion ──────────────────────────────────────────────── */
+  /* Durations — see DESIGN.md for the philosophy. */
+
+  --dur-micro: 120ms;
+  --dur-small: 280ms;
+  --dur-medium: 480ms;
+  --dur-large: 900ms;
+
+  /* Easings — custom curves. Never use the browser defaults. */
+  --ease-out-soft: cubic-bezier(0.22, 0.61, 0.36, 1);   /* Default */
+  --ease-out-long: cubic-bezier(0.16, 1, 0.3, 1);        /* For large motions */
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);          /* Symmetric */
+  --ease-breath: cubic-bezier(0.4, 0, 0.2, 1);            /* For breathing */
+
+  /* ─── Borders & radii ─────────────────────────────────────── */
+  /* We use borders sparingly. Glow does most of the separation work. */
+
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 16px;
+  --radius-full: 999px;
+
+  --border-hair: 1px solid var(--glow-trace);
+  --border-soft: 1px solid var(--glow-whisper);
+
+  /* ─── Dimensions ──────────────────────────────────────────── */
+  /* For the canvas and common primitives. */
+
+  --orb-sm: 6px;             /* Smallest orb (very idle) */
+  --orb-md: 12px;            /* Default orb */
+  --orb-lg: 20px;            /* Active orb */
+  --orb-xl: 32px;            /* Primary focus */
+
+  --you-point: 14px;         /* The "you" marker at center */
+
+  --input-width: 680px;      /* The main input line width */
+
+  /* ─── Z-index layers ──────────────────────────────────────── */
+  --z-canvas: 0;
+  --z-connections: 10;
+  --z-orbs: 20;
+  --z-thoughts: 30;
+  --z-input: 40;
+  --z-tooltip: 50;
+  --z-palette: 100;
+  --z-modal: 200;
+  --z-alarm: 999;
+
+  /* ─── Density modes ───────────────────────────────────────── */
+  /* These multipliers are used to shift density.
+   * Monastic: tripled whitespace. Ops: compressed. */
+
+  --density-monastic: 3;
+  --density-editorial: 1;
+  --density-ops: 0.6;
+}
+
+/* When user overrides with ⌘1 / ⌘2 / ⌘3, this changes. */
+[data-density="monastic"] { --density-scale: var(--density-monastic); }
+[data-density="editorial"] { --density-scale: var(--density-editorial); }
+[data-density="ops"] { --density-scale: var(--density-ops); }

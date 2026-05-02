@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 120" width="400" height="120">
+  <!--
+    astra wordmark · the full italic serif wordmark
+    rendered at 400×120 — scales to any display size
+  -->
+  <defs>
+    <filter id="soft-glow" x="-10%" y="-10%" width="120%" height="120%">
+      <feGaussianBlur stdDeviation="0.6" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <g filter="url(#soft-glow)">
+    <text x="200" y="90"
+          text-anchor="middle"
+          font-family="'Instrument Serif', 'PP Editorial New', 'Canela', Georgia, serif"
+          font-style="italic"
+          font-size="110"
+          font-weight="400"
+          fill="rgba(255,255,255,0.94)"
+          letter-spacing="-0.03em">astra</text>
+  </g>
+</svg>

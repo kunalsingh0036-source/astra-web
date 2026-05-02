@@ -1,0 +1,160 @@
+.main {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: var(--space-16) var(--space-8) var(--space-16);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.trail {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-family: var(--font-mono);
+  font-size: var(--text-label);
+  color: var(--glow-muted);
+}
+.trailLeft a { color: var(--glow-muted); text-decoration: none; }
+.trailLeft a:hover { color: var(--glow-primary); }
+.trailArrow { margin: 0 var(--space-2); color: var(--glow-whisper); }
+.trailCurrent { color: var(--glow-body); }
+.trailRight { color: var(--glow-whisper); }
+
+.head { display: flex; flex-direction: column; gap: var(--space-2); }
+.kicker {
+  font-family: var(--font-mono);
+  font-size: var(--text-label);
+  color: var(--glow-whisper);
+  letter-spacing: var(--tracking-micro);
+}
+.title {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: clamp(44px, 7vw, 80px);
+  line-height: 1.02;
+  color: var(--glow-primary);
+  margin: 0;
+}
+.sub {
+  color: var(--glow-muted);
+  line-height: 1.5;
+  max-width: 55ch;
+}
+
+.err {
+  color: var(--alarm);
+  font-family: var(--font-mono);
+  font-size: var(--text-label);
+  padding: var(--space-3);
+  border-left: 2px solid var(--alarm);
+  background: rgba(249, 112, 102, 0.08);
+  border-radius: 2px;
+}
+.empty {
+  padding: var(--space-8);
+  text-align: center;
+  color: var(--glow-whisper);
+  font-family: var(--font-mono);
+  font-size: var(--text-label);
+  border: 1px dashed var(--glow-trace);
+  border-radius: var(--radius-md);
+}
+.empty a { color: var(--glow-primary); }
+
+.list { display: flex; flex-direction: column; gap: var(--space-3); }
+
+.card, .cardPending, .cardErr {
+  padding: var(--space-4);
+  border: var(--border-hair);
+  border-radius: var(--radius-md);
+  background: rgba(11, 18, 32, 0.35);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.cardPending { border-color: var(--glow-primary); }
+.cardErr { border-color: var(--alarm); }
+
+.cardHead {
+  display: flex;
+  gap: var(--space-2);
+  align-items: baseline;
+  flex-wrap: wrap;
+  font-family: var(--font-mono);
+  font-size: var(--text-label);
+  color: var(--glow-muted);
+}
+.cardTime { color: var(--glow-whisper); min-width: 70px; }
+.sourceApp { color: var(--glow-body); }
+.actionDefault,
+.action_memory,
+.action_task,
+.action_meeting,
+.action_note,
+.stPending {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 10px;
+  border: 1px solid var(--glow-trace);
+  color: var(--glow-muted);
+  text-transform: lowercase;
+}
+.action_task { color: var(--glow-primary); border-color: var(--glow-primary); }
+.action_memory { color: #9ecbff; border-color: #3a5670; }
+.action_meeting { color: #c7a8e6; border-color: #5a4572; }
+.action_note { color: var(--glow-whisper); }
+.stPending { color: var(--glow-primary); border-color: var(--glow-primary); }
+
+.title2 {
+  color: var(--glow-body);
+  font-size: var(--text-body);
+  line-height: 1.4;
+}
+.snippet {
+  color: var(--glow-muted);
+  font-size: var(--text-label);
+  line-height: 1.5;
+}
+.snippet a {
+  color: var(--glow-primary);
+  text-decoration: underline;
+  text-decoration-color: var(--glow-muted);
+}
+.aiSummary {
+  color: var(--glow-body);
+  font-size: var(--text-label);
+  line-height: 1.55;
+  padding-left: var(--space-2);
+  border-left: 2px solid var(--glow-primary);
+}
+.note {
+  color: var(--glow-whisper);
+  font-size: var(--text-label);
+  font-style: italic;
+}
+
+.links { display: flex; gap: var(--space-2); flex-wrap: wrap; }
+.linkChip {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 2px 8px;
+  border: var(--border-hair);
+  border-radius: var(--radius-full);
+  color: var(--glow-body);
+  text-decoration: none;
+}
+.linkChip:hover { border-color: var(--glow-muted); color: var(--glow-primary); }
+
+@media (max-width: 640px) {
+  .main {
+    padding: var(--space-8) var(--space-4) var(--space-12);
+    gap: var(--space-4);
+  }
+  .title { font-size: clamp(36px, 12vw, 56px); line-height: 1.0; }
+  .sub { font-size: 14px; }
+  .card, .cardPending, .cardErr { padding: var(--space-3) var(--space-4); }
+  .cardTime { min-width: auto; }
+}

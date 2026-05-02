@@ -1,0 +1,241 @@
+.dock {
+  position: fixed;
+  bottom: var(--space-12);
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: var(--input-width);
+  padding: 0 var(--space-8);
+  z-index: 40;
+}
+
+/* Option A — invisible / calligraphic.
+   No box. No border. No pill. A single italic-serif line resting on a
+   single hairline baseline, like writing in a ledger. Focus is signaled
+   by the ruled line deepening in opacity; nothing else changes. */
+.line {
+  position: relative;
+  padding: var(--space-4) 0 var(--space-3);
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border: none;
+  border-bottom: 1px solid var(--glow-void);
+  display: flex;
+  align-items: baseline;
+  gap: 0;
+  transition: border-color var(--dur-medium) var(--ease-out-soft);
+}
+
+.line:focus-within {
+  border-bottom-color: var(--glow-trace);
+  box-shadow: none;
+}
+
+/* Keep the DOM node for a11y but make it invisible. */
+.prompt {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.input {
+  flex: 1;
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: 22px;
+  line-height: 1.35;
+  color: var(--glow-primary);
+  letter-spacing: 0;
+  background: transparent;
+  border: none;
+  outline: none;
+  caret-color: var(--glow-primary);
+}
+
+.input::placeholder {
+  color: var(--glow-whisper);
+  font-style: italic;
+  opacity: 0.55;
+}
+
+/* Slow breathing cursor — only visible when the field is empty. Blinks
+   once every 2s, fades through opacity so it feels like a heartbeat,
+   not a computer. */
+.cursor {
+  display: inline-block;
+  width: 1px;
+  height: 22px;
+  background: var(--glow-primary);
+  margin-left: -2px;
+  align-self: center;
+  animation: breathe 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes breathe {
+  0%, 100% { opacity: 0.15; }
+  50%      { opacity: 0.9; }
+}
+
+.hint {
+  display: flex;
+  justify-content: space-between;
+  margin-top: var(--space-3);
+  padding: 0;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--glow-whisper);
+  letter-spacing: var(--tracking-micro);
+  opacity: 0.5;
+  transition: opacity var(--dur-medium) var(--ease-out-soft);
+}
+
+.line:focus-within ~ .hint,
+.dock:hover .hint {
+  opacity: 0.85;
+}
+
+/* Active mode highlight on the mode hints (⌘1/⌘2/⌘3). */
+.kbdActive {
+  color: var(--glow-primary);
+  border-color: var(--glow-muted);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+/* ─── Dictation ──────────────────────────────────────────── */
+
+.line.listening {
+  border-bottom-color: var(--glow-primary);
+}
+
+.mic {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--glow-trace);
+  border-radius: var(--radius-full);
+  background: transparent;
+  cursor: pointer;
+  transition: all var(--dur-small) var(--ease-out-soft);
+  flex-shrink: 0;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+.mic:hover {
+  border-color: var(--glow-muted);
+}
+
+.mic.micLive {
+  border-color: var(--alarm);
+  box-shadow: 0 0 12px var(--alarm-glow);
+}
+
+.micDot {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-full);
+  background: var(--glow-muted);
+  transition: background var(--dur-small) var(--ease-out-soft);
+}
+
+.mic.micLive .micDot {
+  background: var(--alarm);
+  animation: mic-pulse 1.2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes mic-pulse {
+  0%, 100% { opacity: 0.55; transform: scale(1); }
+  50%      { opacity: 1;    transform: scale(1.35); }
+}
+
+.hint kbd {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  padding: 1px 5px;
+  border: 1px solid var(--glow-trace);
+  border-radius: 3px;
+  color: var(--glow-muted);
+  background: var(--abyss-3);
+  cursor: pointer;
+}
+
+/* ─── Mobile ─────────────────────────────────────────────
+ *
+ * Hotkey GLYPHS (⌘K / ⌘⇧; / ⌘1) are useless on a phone — no
+ * cmd key. But the *actions* they trigger (open command
+ * palette, start dictation) absolutely matter on mobile, so
+ * we keep the hint row visible and reshape it: hide the
+ * glyph chips, hide the mode hints (⌘1/2/3 — pure desktop),
+ * and turn the actionable elements into touch-sized pills
+ * with the human-readable label only.
+ *
+ * Result on phone: a row that reads "🎤 dictate · ⊞ commands"
+ * (without the cmd glyphs) where both are tappable. ⊞ is the
+ * cmd-palette icon styling — the kbd is rendered as a pill,
+ * tall enough to hit reliably.
+ */
+@media (max-width: 640px) {
+  .dock {
+    bottom: var(--space-5);
+    padding: 0 var(--space-4);
+    /* Respect the iPhone home-indicator inset */
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .input {
+    font-size: 18px;
+    line-height: 1.3;
+  }
+  .mic {
+    width: 32px;
+    height: 32px;
+  }
+
+  /* Hint row: visible, but stripped to actionables only. */
+  .hint {
+    /* keep visible, override desktop layout */
+    font-size: 11px;
+    padding-top: var(--space-2);
+    gap: var(--space-3);
+  }
+  .hintRight,
+  .kbdHotkey,
+  .hintSep {
+    display: none;            /* mode chips + cmd glyphs gone */
+  }
+  .hintLeft {
+    display: flex;
+    gap: var(--space-3);
+    align-items: center;
+  }
+  .hint kbd {
+    /* Touch-friendly pill: 32px min height comfortably exceeds
+       Apple's 44pt guidance when combined with line-height +
+       padding. */
+    font-size: 12px;
+    padding: 6px 12px;
+    min-height: 28px;
+    border-radius: 999px;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+  }
+  .kbdLabel {
+    /* Drop the leading space the desktop layout needs. */
+    margin-left: 0;
+  }
+  .kbdCommands {
+    /* The commands button gets a touch more presence so
+       it reads as the primary action on mobile. */
+    background: var(--abyss-2, var(--abyss-3));
+    border-color: var(--glow-mid, var(--glow-trace));
+    color: var(--glow-bright, var(--glow-muted));
+  }
+}

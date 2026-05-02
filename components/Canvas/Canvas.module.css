@@ -1,0 +1,177 @@
+.canvas {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+/* Orbital rings — barely visible guides. The motion is the tell. */
+.ring {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  border: 1px dashed rgba(255, 255, 255, 0.04);
+  pointer-events: none;
+}
+
+.ring1 { width: 280px;  height: 280px;  }
+.ring2 { width: 520px;  height: 520px;  }
+.ring3 { width: 820px;  height: 820px;  }
+
+/* "You" — the anchor at the center. Never labeled. */
+.you {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: var(--you-point);
+  height: var(--you-point);
+  border-radius: var(--radius-full);
+  background: var(--glow-primary);
+  box-shadow: var(--halo-active);
+  z-index: 20;
+}
+
+.you::after {
+  content: "";
+  position: absolute;
+  inset: -16px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--glow-whisper);
+  opacity: 0;
+  animation: you-breathe 4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+@keyframes you-breathe {
+  0%, 100% { transform: scale(0.85); opacity: 0.3; }
+  50%      { transform: scale(1.15); opacity: 0.6; }
+}
+
+/*
+ * Orbital mechanics
+ * -----------------
+ * .agentWrap positions at center (50%, 50%) and then its animation
+ * translates around the anchor. The orb inside sits on its own and
+ * counter-rotates so it doesn't itself spin.
+ *
+ * We use per-agent CSS custom props:
+ *   --radius        orbit radius in px
+ *   --period        orbit period (e.g. 92s)
+ *   --angle-start   starting angle in degrees (0–359)
+ *   --direction     1 for clockwise, -1 for counter-clockwise
+ */
+.agentWrap {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  animation: orbit var(--period) linear infinite;
+}
+
+@keyframes orbit {
+  from {
+    transform:
+      rotate(calc(var(--angle-start) * var(--direction)))
+      translateX(var(--radius))
+      rotate(calc(var(--angle-start) * var(--direction) * -1));
+  }
+  to {
+    transform:
+      rotate(calc((var(--angle-start) + 360deg) * var(--direction)))
+      translateX(var(--radius))
+      rotate(calc((var(--angle-start) + 360deg) * var(--direction) * -1));
+  }
+}
+
+.agent {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: inherit;
+  height: inherit;
+  border-radius: var(--radius-full);
+  background: var(--glow-body);
+  box-shadow: var(--halo-soft);
+  padding: 0;
+  /* Link renders as <a> — reset anchor chrome and be explicitly
+     clickable. */
+  display: block;
+  text-decoration: none;
+  cursor: pointer;
+  color: transparent;
+  transition:
+    transform var(--dur-medium) var(--ease-out-soft),
+    box-shadow var(--dur-medium) var(--ease-out-soft),
+    background var(--dur-medium) var(--ease-out-soft);
+}
+
+.agentWrap > .agent {
+  /* inherit sizing from parent, which reads sizePx from the style prop */
+  width: 100%;
+  height: 100%;
+}
+
+.agent:hover {
+  transform: translate(-50%, -50%) scale(1.4);
+  box-shadow: var(--halo-pulse);
+  background: var(--glow-primary);
+}
+
+.agent.active {
+  background: var(--glow-primary);
+  box-shadow: var(--halo-active);
+}
+
+.agent.pulsing {
+  background: var(--glow-primary);
+  box-shadow: var(--halo-active);
+  animation: orb-breathe 3s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+.agent.dim {
+  background: var(--glow-whisper);
+  box-shadow: 0 0 12px rgba(255, 255, 255, 0.06);
+}
+
+.agent.idle {
+  background: var(--glow-body);
+  box-shadow: var(--halo-soft);
+}
+
+.agent.alarm {
+  background: var(--alarm);
+  box-shadow: 0 0 32px var(--alarm-glow), 0 0 80px rgba(249, 112, 102, 0.2);
+}
+
+@keyframes orb-breathe {
+  0%, 100% { opacity: 0.85; }
+  50%      { opacity: 1; }
+}
+
+/* Hover label — the agent's name in mono caps */
+.agent::after {
+  content: attr(data-name);
+  position: absolute;
+  top: calc(100% + 14px);
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: var(--font-mono);
+  font-size: var(--text-label);
+  color: var(--glow-muted);
+  letter-spacing: var(--tracking-micro);
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity var(--dur-small) var(--ease-out-soft);
+  pointer-events: none;
+}
+
+.agent:hover::after {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .agentWrap { animation: none; }
+}

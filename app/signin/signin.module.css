@@ -1,0 +1,89 @@
+.main {
+  min-height: 100vh;
+  /* iOS Safari sets 100vh to include the URL bar, which pushes the
+     button below the fold. Use the small-viewport unit so the screen
+     fits flush regardless of whether the bar is showing. */
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-10) var(--space-6);
+  text-align: center;
+  gap: var(--space-8);
+}
+
+.wordmark {
+  font-family: var(--font-display);
+  font-style: italic;
+  /* Was clamp(120px, 18vw, 200px) — forced 120px on every phone,
+     which pushed the rest of the form off-screen on <400px viewports.
+     New scale starts at 64px on the smallest phones and grows with
+     the viewport up to 200px on desktop. */
+  font-size: clamp(64px, 16vw, 200px);
+  line-height: 0.96;
+  letter-spacing: -0.03em;
+  color: var(--glow-primary);
+  animation: fade-in 1.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.hello {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: clamp(17px, 4.5vw, 22px);
+  color: var(--glow-muted);
+  animation: fade-in 1.4s cubic-bezier(0.16, 1, 0.3, 1) 0.4s both;
+}
+
+.hello em {
+  font-style: normal;
+  color: var(--glow-body);
+}
+
+.error {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--alarm);
+  letter-spacing: var(--tracking-micro);
+  padding: var(--space-3) var(--space-5);
+  border: 1px solid var(--alarm);
+  border-radius: var(--radius-sm);
+}
+
+.button {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  letter-spacing: var(--tracking-micro);
+  color: var(--glow-primary);
+  /* 44px minimum height — iOS Human Interface Guidelines tap target.
+     Extra horizontal padding keeps the button from feeling cramped. */
+  min-height: 44px;
+  padding: 12px 28px;
+  border: 1px solid var(--glow-muted);
+  border-radius: var(--radius-full);
+  background: transparent;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  transition: all var(--dur-small) var(--ease-out-soft);
+  animation: fade-in 1.4s cubic-bezier(0.16, 1, 0.3, 1) 0.8s both;
+}
+
+.button:active {
+  border-color: var(--glow-elevated);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.button:hover {
+  border-color: var(--glow-elevated);
+  background: rgba(255, 255, 255, 0.04);
+  box-shadow: var(--halo-soft);
+}
+
+.footnote {
+  font-family: var(--font-mono);
+  font-size: var(--text-label);
+  letter-spacing: var(--tracking-micro);
+  color: var(--glow-whisper);
+  animation: fade-in 1.4s cubic-bezier(0.16, 1, 0.3, 1) 1.2s both;
+}

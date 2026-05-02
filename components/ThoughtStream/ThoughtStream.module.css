@@ -1,0 +1,80 @@
+/* Thoughts float ABOVE the response pane so reasoning stays visible
+   while the pane is open. z-index > ResponsePane (35). Positioned
+   near the top of the canvas rather than hidden behind the pane. */
+.stream {
+  position: fixed;
+  left: 50%;
+  top: 12vh;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  z-index: 45;
+  pointer-events: none;
+  max-width: 640px;
+  width: 100%;
+  padding: 0 var(--space-8);
+  transition: opacity var(--dur-large) var(--ease-out-long);
+}
+
+.stream[data-streaming="false"] {
+  opacity: 0.55;
+}
+
+.thought {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: 18px;
+  line-height: 1.35;
+  color: var(--glow-primary);
+  text-align: center;
+  margin: 0;
+  max-width: 44ch;
+  /* Soft halo so the thought reads cleanly even over the pane's
+     94%-opaque background. */
+  text-shadow: 0 0 18px rgba(255, 255, 255, 0.25);
+  animation: thought-in var(--dur-medium) var(--ease-out-long) both;
+}
+
+.thought.stale {
+  color: var(--glow-muted);
+  font-size: 16px;
+  opacity: 0.65;
+  text-shadow: none;
+}
+
+@keyframes thought-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+    filter: blur(3px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+/* Mobile — thoughts bleed visually through the ResponsePane on
+   narrow viewports because the pane can't pad itself out enough
+   to hide them. Sink the stream behind the pane (z-index 20 <
+   ResponsePane 35) on phones so the pane is the clear foreground,
+   and shrink thoughts so stale ones don't overflow the screen. */
+@media (max-width: 640px) {
+  .stream {
+    z-index: 20;
+    top: 9vh;
+    padding: 0 var(--space-4);
+  }
+  .thought {
+    font-size: 15px;
+    line-height: 1.3;
+    max-width: 34ch;
+  }
+  .thought.stale {
+    font-size: 13px;
+    opacity: 0.45;
+  }
+}

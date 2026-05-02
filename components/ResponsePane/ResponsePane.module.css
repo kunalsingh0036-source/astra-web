@@ -1,0 +1,275 @@
+.pane {
+  position: fixed;
+  top: 18vh;
+  /* Stop well above the input dock so artifact action buttons
+     (send / save / discard) aren't hidden under the fixed input.
+     dock bottom ≈ var(--space-12) + input height ≈ ~14vh. */
+  bottom: 18vh;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: 640px;
+  padding: var(--space-8) var(--space-8);
+  z-index: 35;
+  /* Higher opacity so artifact content (drafts, tables) reads cleanly
+     against the orbital canvas behind it. Was 0.78 — felt too
+     see-through once text was in the pane. */
+  background: rgba(6, 10, 21, 0.94);
+  backdrop-filter: blur(28px);
+  -webkit-backdrop-filter: blur(28px);
+  border: var(--border-hair);
+  border-radius: var(--radius-lg);
+  box-shadow:
+    0 40px 120px rgba(0, 0, 0, 0.55),
+    0 0 0 1px rgba(255, 255, 255, 0.04) inset;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  /* The whole pane scrolls when its content exceeds the fixed height,
+     so long draft artifacts never flow under the input dock. */
+  overflow-y: auto;
+  animation: pane-in var(--dur-medium) var(--ease-out-long);
+}
+
+@keyframes pane-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-6px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+  }
+}
+
+.head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding-bottom: var(--space-4);
+  border-bottom: var(--border-hair);
+}
+
+.meta {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  font-family: var(--font-mono);
+  font-size: var(--text-label);
+  letter-spacing: var(--tracking-micro);
+  color: var(--glow-whisper);
+}
+
+.tag {
+  color: var(--glow-muted);
+}
+
+.dur {
+  color: var(--glow-whisper);
+}
+
+/* Calligraphic throughout the dialogue — the user's question and
+   Astra's response both render in italic serif on the same line
+   weight. Only chrome labels (meta, buttons, error banners) keep
+   mono so technical readouts stay recognizably functional. */
+.prompt {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: 18px;
+  color: var(--glow-muted);
+  line-height: 1.45;
+  max-width: none;
+}
+
+.body {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: 20px;
+  line-height: 1.5;
+  color: var(--glow-primary);
+  /* Scrolling lives on .pane now so artifacts and text scroll together. */
+  padding-right: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.error {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  color: var(--alarm);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--alarm);
+  border-radius: var(--radius-sm);
+  background: rgba(249, 112, 102, 0.04);
+}
+
+.dismiss {
+  align-self: flex-end;
+  font-family: var(--font-mono);
+  font-size: var(--text-label);
+  letter-spacing: var(--tracking-micro);
+  color: var(--glow-whisper);
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-full);
+  transition: color var(--dur-small) var(--ease-out-soft);
+}
+
+.dismiss:hover {
+  color: var(--glow-body);
+}
+
+/* Style inline links + code + bold inside Astra's response. Links
+   render as bright, slightly-underlined so tapping them is obvious. */
+.body a {
+  color: var(--glow-primary);
+  text-decoration: underline;
+  text-decoration-color: var(--glow-muted);
+  text-underline-offset: 3px;
+  transition: all var(--dur-small) var(--ease-out-soft);
+}
+.body a:hover {
+  text-decoration-color: var(--glow-primary);
+}
+.body code {
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--glow-primary);
+}
+.body strong {
+  color: var(--glow-primary);
+  font-weight: 500;
+}
+.body em {
+  font-style: italic;
+  color: var(--glow-elevated);
+}
+
+/* Paragraphs, lists, headings, tables — structured blocks within the
+   italic-serif body. Lists + tables switch font to interface sans so
+   they're readable in tight rows. */
+.body :global(.resPara) {
+  margin: 0;
+  white-space: pre-wrap;
+}
+.body :global(.resHeading1) {
+  font-family: var(--font-interface);
+  font-style: normal;
+  font-size: 20px;
+  font-weight: 500;
+  color: var(--glow-primary);
+  margin: var(--space-2) 0 var(--space-1);
+}
+.body :global(.resHeading2) {
+  font-family: var(--font-interface);
+  font-style: normal;
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--glow-elevated);
+  margin: var(--space-2) 0 var(--space-1);
+}
+.body :global(.resHeading3) {
+  font-family: var(--font-mono);
+  font-style: normal;
+  font-size: var(--text-label);
+  letter-spacing: var(--tracking-micro);
+  color: var(--glow-whisper);
+  text-transform: lowercase;
+  margin: var(--space-2) 0 0;
+}
+.body :global(.resList) {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  font-family: var(--font-interface);
+  font-style: normal;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--glow-body);
+}
+.body :global(.resList) li {
+  position: relative;
+  padding-left: var(--space-4);
+}
+.body :global(.resList) li::before {
+  content: "—";
+  position: absolute;
+  left: 0;
+  color: var(--glow-whisper);
+}
+.body :global(.resTableWrap) {
+  overflow-x: auto;
+  margin: var(--space-2) 0;
+  /* Hairline hint that this is a scrollable region on narrow screens */
+  border: var(--border-hair);
+  border-radius: var(--radius-sm);
+}
+.body :global(.resTable) {
+  width: 100%;
+  font-family: var(--font-mono);
+  font-style: normal;
+  font-size: 12px;
+  line-height: 1.4;
+  border-collapse: collapse;
+  color: var(--glow-body);
+}
+.body :global(.resTable) th,
+.body :global(.resTable) td {
+  padding: var(--space-2) var(--space-3);
+  text-align: left;
+  border-bottom: 1px solid var(--glow-trace);
+  vertical-align: top;
+}
+.body :global(.resTable) th {
+  font-weight: 500;
+  color: var(--glow-whisper);
+  letter-spacing: var(--tracking-micro);
+  text-transform: lowercase;
+  font-size: 11px;
+  background: rgba(255, 255, 255, 0.02);
+}
+.body :global(.resTable) tr:last-child td {
+  border-bottom: none;
+}
+
+@media (max-width: 640px) {
+  .pane {
+    /* On phone the pane must fully cover the screen so the thought
+       stream behind it can't bleed through. Opaque background, no
+       translucency; claim near-full viewport. */
+    top: 8vh;
+    bottom: 12vh;
+    padding: var(--space-5) var(--space-4);
+    max-width: none;
+    width: calc(100% - var(--space-4));
+    gap: var(--space-3);
+    /* Full opacity — mobile backdrop-filter is unreliable across
+       iOS versions and even when it works the thought stream still
+       reads through at 94% alpha. Solid background fixes this. */
+    background: var(--abyss-1);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+  .body {
+    font-size: 16px;
+    line-height: 1.5;
+    padding-right: 0;
+  }
+  .prompt {
+    font-size: 17px;
+  }
+  .body :global(.resHeading1) { font-size: 18px; }
+  .body :global(.resHeading2) { font-size: 15px; }
+  .body :global(.resList) { font-size: 14px; }
+  .body :global(.resTable) { font-size: 11px; }
+  .body :global(.resTable) th,
+  .body :global(.resTable) td {
+    padding: var(--space-2) var(--space-2);
+  }
+}

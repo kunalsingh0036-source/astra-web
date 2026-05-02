@@ -1,0 +1,197 @@
+.main {
+  max-width: 980px;
+  margin: 0 auto;
+  padding: var(--space-16) var(--space-8) var(--space-16);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-10);
+}
+
+.trail {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-family: var(--font-mono);
+  font-size: var(--text-label);
+  letter-spacing: var(--tracking-micro);
+  color: var(--glow-muted);
+}
+
+.trailLeft a {
+  color: var(--glow-muted);
+  text-decoration: none;
+  transition: color var(--dur-small) var(--ease-out-soft);
+}
+.trailLeft a:hover { color: var(--glow-primary); }
+.trailArrow { margin: 0 var(--space-2); color: var(--glow-whisper); }
+.trailCurrent { color: var(--glow-body); }
+.trailRight { color: var(--glow-whisper); }
+
+.head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.kicker {
+  font-family: var(--font-mono);
+  font-size: var(--text-label);
+  letter-spacing: var(--tracking-micro);
+  color: var(--glow-whisper);
+}
+
+.title {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 400;
+  font-size: clamp(56px, 8vw, 100px);
+  line-height: 0.98;
+  letter-spacing: -0.02em;
+  color: var(--glow-primary);
+  margin: 0;
+}
+
+.summary {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: 20px;
+  line-height: 1.5;
+  color: var(--glow-body);
+  max-width: 720px;
+}
+
+.summary em {
+  font-family: var(--font-mono);
+  font-style: normal;
+  font-size: 18px;
+  color: var(--glow-primary);
+}
+
+/* ─── Grid of cards ────────────────────────────────── */
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--space-4);
+}
+
+.card {
+  padding: var(--space-5) var(--space-5);
+  background: rgba(11, 18, 32, 0.35);
+  border: var(--border-hair);
+  border-radius: var(--radius-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    border-color var(--dur-small) var(--ease-out-soft),
+    transform var(--dur-small) var(--ease-out-soft);
+}
+
+.card:hover {
+  border-color: var(--glow-whisper);
+  transform: translateY(-1px);
+}
+
+.cardLabel {
+  font-family: var(--font-mono);
+  font-size: var(--text-label);
+  letter-spacing: var(--tracking-micro);
+  color: var(--glow-whisper);
+}
+
+.cardValue {
+  font-family: var(--font-mono);
+  font-size: 32px;
+  line-height: 1;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  color: var(--glow-primary);
+  margin-top: var(--space-1);
+}
+
+.cardValue.urgent { color: var(--alarm); }
+
+.cardSub {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: 14px;
+  color: var(--glow-muted);
+}
+
+/* ─── Briefing snippet ────────────────────────────── */
+
+.brief {
+  padding: var(--space-6);
+  background: rgba(11, 18, 32, 0.35);
+  border: var(--border-hair);
+  border-radius: var(--radius-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.briefHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.briefMore {
+  font-family: var(--font-mono);
+  font-size: var(--text-label);
+  letter-spacing: var(--tracking-micro);
+  color: var(--glow-muted);
+  text-decoration: none;
+  transition: color var(--dur-small) var(--ease-out-soft);
+}
+.briefMore:hover { color: var(--glow-primary); }
+
+.briefBody {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.62;
+  color: var(--glow-body);
+  white-space: pre-wrap;
+  margin: 0;
+}
+
+.empty {
+  font-family: var(--font-display);
+  font-style: italic;
+  color: var(--glow-whisper);
+  margin: 0;
+}
+
+/* ─── Mobile ───────────────────────────────────────────
+ *
+ * Below 640px (iPhone portrait), collapse the tripled
+ * whitespace of the editorial layout. The visual hierarchy
+ * survives because the font scale (display/body/mono)
+ * carries the weight, not the gutters.
+ */
+@media (max-width: 640px) {
+  .main {
+    padding: var(--space-8) var(--space-4) var(--space-12);
+    gap: var(--space-6);
+  }
+  .trail { flex-wrap: wrap; gap: var(--space-2); }
+  .head { gap: var(--space-3); }
+  .title { font-size: clamp(40px, 13vw, 64px); line-height: 1.0; }
+  .summary { font-size: 17px; line-height: 1.45; }
+  .summary em { font-size: 15px; }
+  .grid {
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-3);
+  }
+  .card { padding: var(--space-4); }
+  .cardValue { font-size: 24px; }
+  .brief { padding: var(--space-5); gap: var(--space-3); }
+  .briefBody { font-size: 12px; }
+}
+@media (max-width: 400px) {
+  .grid { grid-template-columns: 1fr; }
+}

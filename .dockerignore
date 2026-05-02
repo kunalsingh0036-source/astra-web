@@ -1,0 +1,17 @@
+# Don't ship the local dev artifacts into the image.
+node_modules
+.next
+.git
+.env
+.env.local
+.env.*.local
+npm-debug.log
+yarn-error.log
+.DS_Store
+.vscode
+.idea
+*.swp
+
+# Keep the package files — Dockerfile copies these explicitly.
+!package.json
+!package-lock.json

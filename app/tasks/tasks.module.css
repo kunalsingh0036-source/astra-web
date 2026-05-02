@@ -1,0 +1,188 @@
+.main {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: var(--space-16) var(--space-8) var(--space-16);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+}
+
+.trail {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-family: var(--font-mono);
+  font-size: var(--text-label);
+  letter-spacing: var(--tracking-micro);
+  color: var(--glow-muted);
+}
+.trailLeft a { color: var(--glow-muted); text-decoration: none; transition: color var(--dur-small) var(--ease-out-soft); }
+.trailLeft a:hover { color: var(--glow-primary); }
+.trailArrow { margin: 0 var(--space-2); color: var(--glow-whisper); }
+.trailCurrent { color: var(--glow-body); }
+.trailRight { color: var(--glow-whisper); }
+.overdueTag { color: var(--alarm); }
+.errText { color: var(--alarm); }
+
+.head { display: flex; flex-direction: column; gap: var(--space-4); }
+.kicker {
+  font-family: var(--font-mono); font-size: var(--text-label);
+  letter-spacing: var(--tracking-micro);
+  color: var(--glow-whisper);
+}
+.title {
+  font-family: var(--font-display); font-style: italic; font-weight: 400;
+  font-size: clamp(56px, 8vw, 100px); line-height: 0.98; letter-spacing: -0.02em;
+  color: var(--glow-primary); margin: 0;
+}
+.summary {
+  font-family: var(--font-display); font-style: italic;
+  font-size: 18px; line-height: 1.55; color: var(--glow-body); max-width: 640px;
+}
+
+/* ─── Add bar ─────────────────────────────────────── */
+
+.addBar { display: flex; flex-direction: column; }
+
+.addForm {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-4);
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--glow-void);
+  transition: border-color var(--dur-medium) var(--ease-out-soft);
+}
+.addForm:focus-within { border-bottom-color: var(--glow-trace); }
+
+.addPrompt {
+  font-family: var(--font-mono); font-size: 18px; color: var(--glow-whisper);
+}
+
+.addInput {
+  flex: 1;
+  font-family: var(--font-display); font-style: italic;
+  font-size: 22px; line-height: 1.35;
+  color: var(--glow-primary);
+  background: transparent; border: none; outline: none;
+}
+.addInput::placeholder { color: var(--glow-whisper); font-style: italic; opacity: 0.55; }
+
+/* ─── Filter row ─────────────────────────────────── */
+
+.filterRow { display: flex; gap: var(--space-2); }
+.filter {
+  font-family: var(--font-mono); font-size: 11px;
+  letter-spacing: var(--tracking-micro);
+  color: var(--glow-muted); background: transparent;
+  padding: var(--space-2) var(--space-4);
+  border: var(--border-hair); border-radius: var(--radius-full);
+  cursor: pointer; transition: all var(--dur-small) var(--ease-out-soft);
+}
+.filter:hover { color: var(--glow-body); }
+.filter.active { color: var(--glow-primary); background: rgba(255,255,255,0.04); }
+
+/* ─── List ───────────────────────────────────────── */
+
+.list { display: flex; flex-direction: column; gap: var(--space-2); }
+
+.item {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: var(--space-4);
+  align-items: start;
+  padding: var(--space-4) var(--space-5);
+  background: rgba(11, 18, 32, 0.35);
+  border: var(--border-hair);
+  border-radius: var(--radius-md);
+  transition: all var(--dur-small) var(--ease-out-soft);
+}
+.item:hover { border-color: var(--glow-whisper); }
+.item.itemDone { opacity: 0.5; }
+.item.itemDone .itemTitle { text-decoration: line-through; }
+
+.check {
+  width: 22px; height: 22px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--glow-trace);
+  background: transparent;
+  display: inline-flex; align-items: center; justify-content: center;
+  cursor: pointer; padding: 0;
+  transition: all var(--dur-small) var(--ease-out-soft);
+}
+.check:hover { border-color: var(--glow-muted); }
+.check[aria-pressed="true"] { border-color: var(--glow-primary); }
+.checkDot {
+  width: 8px; height: 8px; border-radius: var(--radius-full);
+  background: transparent;
+  transition: all var(--dur-small) var(--ease-out-soft);
+}
+.check[aria-pressed="true"] .checkDot { background: var(--glow-primary); }
+
+.itemBody { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+
+.itemTitle {
+  font-family: var(--font-interface);
+  font-size: 15px; line-height: 1.45;
+  color: var(--glow-primary);
+  word-break: break-word;
+}
+.itemNote {
+  font-family: var(--font-display); font-style: italic;
+  font-size: 13px; color: var(--glow-muted);
+}
+.itemMeta {
+  font-family: var(--font-mono); font-size: 10px;
+  letter-spacing: var(--tracking-micro);
+  color: var(--glow-whisper);
+  display: flex; gap: var(--space-2); flex-wrap: wrap;
+}
+.priority { color: var(--glow-muted); }
+.tags, .due, .source, .created { color: var(--glow-whisper); }
+
+.itemActions {
+  display: flex; gap: var(--space-2); align-items: center;
+}
+
+.priSelect {
+  font-family: var(--font-mono); font-size: 10px;
+  color: var(--glow-muted); background: transparent;
+  border: var(--border-hair); border-radius: var(--radius-sm);
+  padding: 2px 4px;
+  cursor: pointer;
+}
+
+.delete {
+  font-family: var(--font-mono); font-size: 18px;
+  color: var(--glow-whisper); background: transparent; border: none;
+  cursor: pointer; padding: 0 var(--space-2);
+  transition: color var(--dur-small) var(--ease-out-soft);
+}
+.delete:hover { color: var(--alarm); }
+
+.empty {
+  font-family: var(--font-display); font-style: italic;
+  color: var(--glow-whisper); text-align: center; padding: var(--space-10) 0;
+}
+
+@media (max-width: 640px) {
+  .main {
+    padding: var(--space-8) var(--space-4) var(--space-12);
+    gap: var(--space-5);
+  }
+  .trail { flex-wrap: wrap; gap: var(--space-2); }
+  .head { gap: var(--space-2); }
+  .title { font-size: clamp(36px, 12vw, 56px); line-height: 1.0; }
+  .summary { font-size: 15px; }
+  .addPrompt { font-size: 16px; }
+  .addInput { font-size: 18px; }
+  .item {
+    padding: var(--space-3) var(--space-4);
+    /* The 3-col grid holds up on phone IF the middle body column
+       wraps; the itemMeta row should sit inside it (it already does
+       via flex-wrap on .itemMeta). */
+    gap: var(--space-3);
+  }
+  .itemActions { gap: var(--space-1); }
+  .priSelect { font-size: 10px; }
+}

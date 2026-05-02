@@ -1,0 +1,30 @@
+.signature {
+  position: fixed;
+  bottom: var(--space-8);
+  left: var(--space-8);
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: 24px;
+  color: var(--glow-muted);
+  letter-spacing: var(--tracking-display);
+  z-index: 50;
+  user-select: none;
+  pointer-events: auto;
+  text-decoration: none;
+  cursor: pointer;
+  transition: color var(--dur-small) var(--ease-out-soft);
+}
+
+.signature:hover {
+  color: var(--glow-primary);
+}
+
+/* Hide the signature wordmark on phones — the screen is too narrow
+   for it to live alongside the input dock without collision. The
+   astra identity is already carried by the top-left trail + the
+   home screen icon. */
+@media (max-width: 640px) {
+  .signature {
+    display: none;
+  }
+}

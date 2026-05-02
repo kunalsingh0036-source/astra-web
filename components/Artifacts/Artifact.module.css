@@ -1,0 +1,312 @@
+.artifact {
+  margin-top: var(--space-5);
+  padding: var(--space-5) var(--space-5);
+  border: var(--border-hair);
+  border-radius: var(--radius-md);
+  background: rgba(2, 4, 10, 0.35);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.label {
+  font-family: var(--font-mono);
+  font-size: var(--text-label);
+  letter-spacing: var(--tracking-micro);
+  color: var(--glow-whisper);
+}
+
+.title {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: 20px;
+  line-height: 1.15;
+  color: var(--glow-elevated);
+  letter-spacing: -0.01em;
+  font-weight: 400;
+}
+
+/* ─── Table ─────────────────────────────────────────── */
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+
+.table thead {
+  background: rgba(2, 4, 10, 0.4);
+}
+
+.table th {
+  text-align: left;
+  padding: var(--space-3) var(--space-4);
+  font-size: 10px;
+  letter-spacing: var(--tracking-micro);
+  color: var(--glow-whisper);
+  font-weight: 500;
+  border-bottom: var(--border-hair);
+  cursor: pointer;
+  user-select: none;
+  transition: color var(--dur-small) var(--ease-out-soft);
+  white-space: nowrap;
+}
+
+.table th:hover {
+  color: var(--glow-body);
+}
+
+.table th.sorted {
+  color: var(--glow-primary);
+}
+
+.sortMark {
+  display: inline-block;
+  margin-left: 4px;
+  color: var(--glow-primary);
+}
+
+.table td {
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--glow-void);
+  color: var(--glow-body);
+  vertical-align: top;
+}
+
+.table tr:last-child td {
+  border-bottom: none;
+}
+
+.table tr:hover td {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.table td.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--glow-elevated);
+}
+
+.caption {
+  font-family: var(--font-mono);
+  font-size: var(--text-label);
+  color: var(--glow-whisper);
+  padding-top: var(--space-2);
+}
+
+/* ─── Draft ─────────────────────────────────────────── */
+
+.draftMeta {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3) 0;
+  border-top: var(--border-hair);
+  border-bottom: var(--border-hair);
+}
+
+.draftRow {
+  display: flex;
+  gap: var(--space-4);
+  align-items: baseline;
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.draftField {
+  color: var(--glow-whisper);
+  letter-spacing: var(--tracking-micro);
+  width: 24px;
+}
+
+.draftValue {
+  color: var(--glow-body);
+}
+
+.draftSubject {
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
+  border: var(--border-hair);
+  border-radius: var(--radius-sm);
+  background: rgba(2, 4, 10, 0.25);
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: 20px;
+  color: var(--glow-primary);
+  letter-spacing: -0.01em;
+}
+
+.draftBody {
+  width: 100%;
+  padding: var(--space-4) var(--space-4);
+  border: var(--border-hair);
+  border-radius: var(--radius-sm);
+  background: rgba(2, 4, 10, 0.25);
+  /* Calligraphic — match the rest of the dialogue so a draft reads
+     as a continuation of the conversation, not a separate input
+     surface. */
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: 17px;
+  line-height: 1.55;
+  color: var(--glow-body);
+  letter-spacing: -0.005em;
+  resize: vertical;
+  min-height: 160px;
+}
+
+.draftBody:focus {
+  border-color: var(--glow-muted);
+}
+
+.draftActions {
+  display: flex;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.draftBtn {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: var(--tracking-micro);
+  color: var(--glow-body);
+  padding: var(--space-2) var(--space-5);
+  border: var(--border-hair);
+  border-radius: var(--radius-full);
+  transition: all var(--dur-small) var(--ease-out-soft);
+  cursor: pointer;
+}
+
+.draftBtn:hover {
+  color: var(--glow-primary);
+  border-color: var(--glow-muted);
+}
+
+.draftBtn.primary {
+  color: var(--glow-primary);
+  border-color: var(--glow-muted);
+}
+
+.draftBtn.primary:hover {
+  border-color: var(--glow-elevated);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.draftBtn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.draftBtn:disabled:hover {
+  color: var(--glow-body);
+  border-color: inherit;
+  background: transparent;
+}
+
+.draftStatus {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: var(--tracking-micro);
+  color: var(--glow-whisper);
+  padding-top: var(--space-2);
+}
+
+.draftStatus.err {
+  color: var(--alarm);
+}
+
+/* ─── Metric ────────────────────────────────────────── */
+
+.metric {
+  padding: var(--space-6) var(--space-5);
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+
+.metricLabel {
+  font-family: var(--font-mono);
+  font-size: var(--text-label);
+  letter-spacing: var(--tracking-micro);
+  color: var(--glow-muted);
+}
+
+.metricValue {
+  font-family: var(--font-mono);
+  font-size: 44px;
+  line-height: 1;
+  color: var(--glow-primary);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+}
+
+.metricValue.urgent {
+  color: var(--alarm);
+}
+
+.metricSub {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--glow-whisper);
+}
+
+/* ─── WhatsApp template picker ──────────────────────────── */
+
+.templatePicker {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--glow-void);
+}
+
+.templateLabel {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: var(--tracking-micro);
+  color: var(--glow-whisper);
+}
+
+.templateList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.templateRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: var(--space-3) var(--space-4);
+  background: transparent;
+  border: 1px solid var(--glow-void);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  text-align: left;
+  transition: all var(--dur-small) var(--ease-out-soft);
+}
+
+.templateRow:hover {
+  border-color: var(--glow-muted);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.templateName {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--glow-primary);
+}
+
+.templateMeta {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: var(--tracking-micro);
+  color: var(--glow-whisper);
+}

@@ -1,0 +1,289 @@
+.main {
+  max-width: 980px;
+  margin: 0 auto;
+  padding: var(--space-16) var(--space-8) var(--space-16);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-10);
+}
+
+/* ─── Trail (breadcrumb) ──────────────────────────────────── */
+
+.trail {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-family: var(--font-mono);
+  font-size: var(--text-label);
+  letter-spacing: var(--tracking-micro);
+  color: var(--glow-muted);
+}
+
+.trailLeft a {
+  color: var(--glow-muted);
+  text-decoration: none;
+  transition: color var(--dur-small) var(--ease-out-soft);
+}
+
+.trailLeft a:hover { color: var(--glow-primary); }
+
+.trailArrow {
+  margin: 0 var(--space-2);
+  color: var(--glow-whisper);
+}
+
+.trailCurrent { color: var(--glow-body); }
+
+.trailRight { color: var(--glow-whisper); }
+.errText { color: var(--alarm); }
+
+/* ─── Editorial head ──────────────────────────────────────── */
+
+.head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.kicker {
+  font-family: var(--font-mono);
+  font-size: var(--text-label);
+  letter-spacing: var(--tracking-micro);
+  color: var(--glow-whisper);
+}
+
+.title {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 400;
+  font-size: clamp(56px, 8vw, 100px);
+  line-height: 0.98;
+  letter-spacing: -0.02em;
+  color: var(--glow-primary);
+  margin: 0;
+}
+
+.summary {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: 20px;
+  line-height: 1.5;
+  color: var(--glow-body);
+  max-width: 720px;
+}
+
+.summary em {
+  font-family: var(--font-mono);
+  font-style: normal;
+  font-size: 18px;
+  color: var(--glow-primary);
+}
+
+/* ─── Window switch ──────────────────────────────────────── */
+
+.controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.windowSwitch {
+  display: inline-flex;
+  border: var(--border-hair);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+
+.winBtn {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: var(--tracking-micro);
+  color: var(--glow-whisper);
+  background: transparent;
+  border: none;
+  padding: var(--space-2) var(--space-5);
+  cursor: pointer;
+  transition: all var(--dur-small) var(--ease-out-soft);
+}
+
+.winBtn:hover { color: var(--glow-body); }
+
+.winBtn.winActive {
+  color: var(--glow-primary);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+/* ─── Chart ───────────────────────────────────────────────── */
+
+.chart {
+  padding: var(--space-6) var(--space-6) var(--space-4);
+  background: rgba(11, 18, 32, 0.35);
+  border: var(--border-hair);
+  border-radius: var(--radius-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.chartHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-family: var(--font-mono);
+  font-size: var(--text-label);
+  letter-spacing: var(--tracking-micro);
+}
+
+.chartLabel { color: var(--glow-muted); }
+.chartSub { color: var(--glow-whisper); }
+
+.bars {
+  height: 160px;
+  display: grid;
+  gap: 2px;
+  align-items: end;
+}
+
+.bar {
+  background: linear-gradient(
+    to top,
+    rgba(255, 255, 255, 0.45),
+    rgba(255, 255, 255, 0.12)
+  );
+  border-radius: 1px;
+  transition:
+    background var(--dur-small) var(--ease-out-soft),
+    transform var(--dur-small) var(--ease-out-soft);
+  min-height: 2px;
+}
+
+.bar:hover {
+  background: linear-gradient(
+    to top,
+    var(--glow-primary),
+    rgba(255, 255, 255, 0.4)
+  );
+  transform: scaleY(1.02);
+  transform-origin: bottom;
+}
+
+.bar.barEmpty {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.barsAxis {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--glow-whisper);
+  letter-spacing: var(--tracking-micro);
+}
+
+/* ─── Grid of cards ──────────────────────────────────────── */
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: var(--space-5);
+}
+
+.card {
+  padding: var(--space-6);
+  background: rgba(11, 18, 32, 0.35);
+  border: var(--border-hair);
+  border-radius: var(--radius-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.cardLabel {
+  font-family: var(--font-mono);
+  font-size: var(--text-label);
+  letter-spacing: var(--tracking-micro);
+  color: var(--glow-muted);
+}
+
+.dl {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: var(--space-3) var(--space-4);
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--glow-body);
+}
+
+.dl dt {
+  color: var(--glow-muted);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.dl dd {
+  color: var(--glow-primary);
+  text-align: right;
+  margin: 0;
+}
+
+.modelName {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--glow-body);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.modelBar {
+  display: block;
+  height: 2px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 1px;
+  overflow: hidden;
+}
+
+.modelBarFill {
+  display: block;
+  height: 100%;
+  background: var(--glow-primary);
+  opacity: 0.45;
+}
+
+.tinyDim {
+  color: var(--glow-whisper);
+  font-size: 11px;
+}
+
+.empty {
+  font-family: var(--font-display);
+  font-style: italic;
+  color: var(--glow-whisper);
+  font-size: 14px;
+  margin: 0;
+}
+
+@media (max-width: 640px) {
+  .main {
+    padding: var(--space-8) var(--space-4) var(--space-12);
+    gap: var(--space-6);
+  }
+  .trail { flex-wrap: wrap; gap: var(--space-2); }
+  .head { gap: var(--space-2); }
+  .title { font-size: clamp(36px, 12vw, 56px); line-height: 1.0; }
+  .summary { font-size: 16px; }
+  .summary em { font-size: 15px; }
+  .controls { flex-direction: column; align-items: stretch; gap: var(--space-3); }
+  .chart { padding: var(--space-4); }
+  .bars { height: 120px; }
+  .grid {
+    grid-template-columns: 1fr;
+    gap: var(--space-3);
+  }
+  .card { padding: var(--space-4); gap: var(--space-3); }
+  .dl { gap: var(--space-2) var(--space-3); font-size: 12px; }
+}

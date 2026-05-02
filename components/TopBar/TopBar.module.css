@@ -1,0 +1,109 @@
+.topbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  padding: var(--space-6) var(--space-8);
+  z-index: 40;
+  pointer-events: none;
+
+  /* Ops mode uses a 3-column grid; monastic/editorial just show the
+     wordmark so the grid degrades to a single cell on the left. */
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: var(--space-6);
+}
+
+.topbar > * {
+  pointer-events: auto;
+}
+
+.leftCol {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.mark {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: 20px;
+  color: var(--glow-muted);
+  text-decoration: none;
+  cursor: pointer;
+  transition: color var(--dur-small) var(--ease-out-soft);
+}
+
+.mark:hover {
+  color: var(--glow-primary);
+}
+
+/* ─── Ops-mode detail row ──────────────────────────────── */
+
+.cost {
+  font-family: var(--font-mono);
+  font-size: var(--text-caption);
+  letter-spacing: var(--tracking-micro);
+  color: var(--glow-whisper);
+  text-decoration: none;
+  cursor: pointer;
+  transition: color var(--dur-small) var(--ease-out-soft);
+}
+
+.cost:hover {
+  color: var(--glow-primary);
+}
+
+.center {
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: var(--text-label);
+  letter-spacing: var(--tracking-micro);
+  color: var(--glow-muted);
+}
+
+.time b {
+  color: var(--glow-body);
+  font-weight: 500;
+}
+
+.sub {
+  font-size: var(--text-caption);
+  color: var(--glow-whisper);
+  margin-top: 2px;
+}
+
+.status {
+  justify-self: end;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  font-family: var(--font-mono);
+  font-size: var(--text-label);
+  letter-spacing: var(--tracking-micro);
+  color: var(--glow-muted);
+}
+
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-full);
+  background: var(--glow-primary);
+  box-shadow: var(--halo-soft);
+  animation: pulse-halo 2.4s ease-in-out infinite;
+}
+
+.status.attention {
+  color: var(--alarm);
+}
+
+.status.attention .dot {
+  background: var(--alarm);
+  box-shadow: 0 0 12px var(--alarm-glow);
+}
+
+@keyframes pulse-halo {
+  0%, 100% { opacity: 0.7; }
+  50%      { opacity: 1; }
+}

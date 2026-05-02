@@ -1,0 +1,164 @@
+.main {
+  max-width: 920px;
+  margin: 0 auto;
+  padding: var(--space-16) var(--space-8) var(--space-16);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+}
+
+.trail {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-family: var(--font-mono);
+  font-size: var(--text-label);
+  color: var(--glow-muted);
+}
+.trailLeft a { color: var(--glow-muted); text-decoration: none; }
+.trailLeft a:hover { color: var(--glow-primary); }
+.trailArrow { margin: 0 var(--space-2); color: var(--glow-whisper); }
+.trailCurrent { color: var(--glow-body); }
+.trailRight { color: var(--glow-whisper); }
+
+.head { display: flex; flex-direction: column; gap: var(--space-3); }
+.kicker {
+  font-family: var(--font-mono);
+  font-size: var(--text-label);
+  color: var(--glow-whisper);
+  letter-spacing: var(--tracking-micro);
+}
+.title {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 400;
+  font-size: clamp(48px, 7vw, 80px);
+  line-height: 1.02;
+  letter-spacing: -0.02em;
+  color: var(--glow-body);
+  margin: 0;
+}
+.sub {
+  color: var(--glow-muted);
+  line-height: 1.5;
+  max-width: 65ch;
+}
+
+.empty, .hint {
+  padding: var(--space-8);
+  text-align: center;
+  color: var(--glow-whisper);
+  font-family: var(--font-mono);
+  font-size: var(--text-label);
+  border: 1px dashed var(--edge);
+  border-radius: var(--radius-card);
+}
+.err {
+  color: #d88;
+  font-family: var(--font-mono);
+  font-size: var(--text-label);
+  padding: var(--space-3);
+  border-left: 2px solid #d88;
+  background: rgba(216,136,136,0.08);
+  border-radius: 2px;
+}
+
+.list { display: flex; flex-direction: column; gap: var(--space-3); }
+
+.card {
+  padding: var(--space-5);
+  border: 1px solid var(--edge);
+  border-radius: var(--radius-card);
+  background: var(--pane);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  text-decoration: none;
+  color: inherit;
+  transition: border-color var(--dur-small) var(--ease-out-soft);
+}
+.card:hover { border-color: var(--glow-muted); }
+
+.cardHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--space-3);
+}
+.cardTitle {
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+  color: var(--glow-body);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cardStatus { flex-shrink: 0; }
+.stateDefault,
+.state_pending,
+.state_running,
+.state_ready,
+.state_error {
+  font-family: var(--font-mono);
+  font-size: var(--text-label);
+  padding: 2px 8px;
+  border-radius: 12px;
+  border: 1px solid var(--edge);
+  color: var(--glow-muted);
+}
+.state_pending, .state_running {
+  color: var(--glow-primary); border-color: var(--glow-primary);
+}
+.state_ready { color: #8c8; border-color: #8c8; }
+.state_error { color: #d88; border-color: #d88; }
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: baseline;
+  font-family: var(--font-mono);
+  font-size: var(--text-label);
+  color: var(--glow-muted);
+}
+.dot { color: var(--glow-whisper); }
+.tag { color: var(--glow-primary); }
+
+.gist {
+  color: var(--glow-body);
+  line-height: 1.55;
+  font-size: var(--text-label);
+  white-space: pre-wrap;
+}
+.cardErr {
+  color: #d88;
+  font-family: var(--font-mono);
+  font-size: var(--text-label);
+}
+
+@media (max-width: 640px) {
+  .main {
+    padding: var(--space-8) var(--space-4) var(--space-12);
+    gap: var(--space-5);
+  }
+  .trail { flex-wrap: wrap; gap: var(--space-2); }
+  .head { gap: var(--space-2); }
+  .title { font-size: clamp(36px, 12vw, 56px); line-height: 1.0; }
+  .sub { font-size: 14px; line-height: 1.45; }
+  .card {
+    padding: var(--space-4);
+    gap: var(--space-2);
+  }
+  .cardTitle {
+    font-size: 14px;
+    white-space: normal;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .meta { row-gap: var(--space-1); }
+  .gist { font-size: 12px; line-height: 1.5; }
+}

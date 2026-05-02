@@ -1,0 +1,251 @@
+.main {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: var(--space-16) var(--space-8) var(--space-16);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-10);
+}
+
+.trail {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-family: var(--font-mono);
+  font-size: var(--text-label);
+  letter-spacing: var(--tracking-micro);
+  color: var(--glow-muted);
+}
+.trailLeft a {
+  color: var(--glow-muted);
+  text-decoration: none;
+}
+.trailLeft a:hover { color: var(--glow-primary); }
+.trailArrow { margin: 0 var(--space-2); color: var(--glow-whisper); }
+.trailCurrent { color: var(--glow-body); }
+.trailRight { color: var(--glow-whisper); }
+
+.head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+.kicker {
+  font-family: var(--font-mono);
+  font-size: var(--text-label);
+  letter-spacing: var(--tracking-micro);
+  color: var(--glow-whisper);
+}
+.title {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 400;
+  font-size: clamp(48px, 7vw, 80px);
+  line-height: 1.02;
+  letter-spacing: -0.02em;
+  color: var(--glow-body);
+  margin: 0;
+}
+.sub {
+  color: var(--glow-muted);
+  line-height: 1.5;
+  max-width: 60ch;
+}
+.ts { color: var(--glow-whisper); font-family: var(--font-mono); font-size: var(--text-label); }
+
+/* ── form ────────────────────────────────────────────────── */
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-6);
+  border: 1px solid var(--edge);
+  border-radius: var(--radius-card);
+  background: var(--pane);
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 120px 1fr 40px;
+  align-items: center;
+  gap: var(--space-4);
+}
+.rowLabel { color: var(--glow-body); font-family: var(--font-sans); font-size: var(--text-body); }
+.rowInput {
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
+  background: transparent;
+  border: 1px solid var(--edge);
+  border-radius: var(--radius-input);
+  color: var(--glow-primary);
+  font-family: var(--font-mono);
+  font-size: var(--text-body);
+  text-align: right;
+}
+.rowInput:focus {
+  outline: none;
+  border-color: var(--glow-primary);
+}
+.rowUnit { color: var(--glow-whisper); font-family: var(--font-mono); font-size: var(--text-label); }
+
+.formFoot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--edge);
+  margin-top: var(--space-3);
+}
+.total { font-family: var(--font-mono); font-size: var(--text-label); color: var(--glow-muted); }
+
+.submit {
+  padding: var(--space-3) var(--space-6);
+  background: var(--glow-primary);
+  color: var(--bg);
+  border: none;
+  border-radius: var(--radius-input);
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+  letter-spacing: var(--tracking-micro);
+  cursor: pointer;
+}
+.submit:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.err {
+  color: #d88;
+  font-family: var(--font-mono);
+  font-size: var(--text-label);
+  padding: var(--space-3) var(--space-4);
+  background: rgba(216, 136, 136, 0.08);
+  border-left: 2px solid #d88;
+  border-radius: 2px;
+}
+
+/* ── pending approval card ────────────────────────────────── */
+
+.pending {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-6);
+  border: 1px solid var(--edge);
+  border-radius: var(--radius-card);
+  background: var(--pane);
+}
+.pendingHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.table {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-family: var(--font-mono);
+  font-size: var(--text-body);
+}
+.tblRow,
+.tblRowActive {
+  display: grid;
+  grid-template-columns: 110px 60px 20px 60px 60px;
+  gap: var(--space-3);
+  align-items: baseline;
+  padding: var(--space-2) 0;
+  color: var(--glow-muted);
+}
+.tblRowActive { color: var(--glow-body); }
+.tblLabel { color: inherit; }
+.tblBefore { text-align: right; color: var(--glow-whisper); }
+.tblArrow { text-align: center; color: var(--glow-whisper); }
+.tblAfter { text-align: right; color: var(--glow-primary); }
+.tblDelta { text-align: left; color: var(--glow-muted); font-size: var(--text-label); }
+
+.actions {
+  display: flex;
+  gap: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--edge);
+  margin-top: var(--space-3);
+}
+.apply {
+  padding: var(--space-3) var(--space-6);
+  background: var(--glow-primary);
+  color: var(--bg);
+  border: none;
+  border-radius: var(--radius-input);
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+  cursor: pointer;
+}
+.apply:disabled { opacity: 0.4; cursor: not-allowed; }
+.reject {
+  padding: var(--space-3) var(--space-6);
+  background: transparent;
+  color: var(--glow-muted);
+  border: 1px solid var(--edge);
+  border-radius: var(--radius-input);
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+  cursor: pointer;
+}
+.reject:hover { color: var(--glow-body); border-color: var(--glow-muted); }
+.reject:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.hint {
+  color: var(--glow-whisper);
+  font-family: var(--font-mono);
+  font-size: var(--text-label);
+  padding-top: var(--space-2);
+}
+
+@media (max-width: 640px) {
+  .main {
+    padding: var(--space-8) var(--space-4) var(--space-12);
+    gap: var(--space-5);
+  }
+  .trail { flex-wrap: wrap; gap: var(--space-2); }
+  .head { gap: var(--space-3); }
+  .title { font-size: clamp(36px, 12vw, 56px); line-height: 1.0; }
+  .sub { font-size: 14px; line-height: 1.45; }
+  .form { padding: var(--space-4); gap: var(--space-3); }
+  .row {
+    /* Keep label left, input right, but shrink label column */
+    grid-template-columns: 95px 1fr 30px;
+    gap: var(--space-3);
+  }
+  .rowInput { padding: var(--space-2) var(--space-3); }
+  .formFoot {
+    flex-wrap: wrap;
+    gap: var(--space-3);
+  }
+  .submit { flex: 1; padding: var(--space-3) var(--space-5); }
+  .pending { padding: var(--space-4); }
+  .pendingHead {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-1);
+  }
+  /* 5-col decrement table is too wide on iPhone. Tighten columns. */
+  .tblRow, .tblRowActive {
+    grid-template-columns: 90px 45px 12px 45px 45px;
+    gap: var(--space-2);
+    font-size: 12px;
+  }
+  .actions { flex-wrap: wrap; gap: var(--space-2); }
+  .apply, .reject { flex: 1; padding: var(--space-3) var(--space-4); }
+}
+/* Even tighter for the smallest iPhones (iPhone SE = 375px, drop
+   further below 360 if a device is narrower — landscape shown too). */
+@media (max-width: 360px) {
+  .row { grid-template-columns: 80px 1fr 28px; }
+  .tblRow, .tblRowActive {
+    grid-template-columns: 80px 40px 10px 40px 40px;
+    font-size: 11px;
+  }
+}

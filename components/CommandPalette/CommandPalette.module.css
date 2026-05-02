@@ -1,0 +1,234 @@
+.dim {
+  position: fixed;
+  inset: 0;
+  background: rgba(2, 4, 10, 0.55);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 100;
+  animation: dim-in var(--dur-small) var(--ease-out-soft);
+}
+
+@keyframes dim-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.palette {
+  position: fixed;
+  top: 14vh;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: 720px;
+  background: rgba(11, 18, 32, 0.92);
+  backdrop-filter: blur(40px);
+  -webkit-backdrop-filter: blur(40px);
+  border: 1px solid var(--glow-whisper);
+  border-radius: var(--radius-lg);
+  box-shadow:
+    0 40px 120px rgba(0, 0, 0, 0.6),
+    0 0 0 1px rgba(255, 255, 255, 0.04) inset;
+  z-index: 101;
+  overflow: hidden;
+  animation: palette-in 0.32s var(--ease-out-long);
+}
+
+@keyframes palette-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(-8px) scale(0.98); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+}
+
+.inputWrap {
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+  padding: var(--space-6) var(--space-8);
+  border-bottom: var(--border-hair);
+}
+
+.prompt {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  color: var(--glow-whisper);
+}
+
+/* Match the canvas input — italic serif on a hairline baseline.
+   Keeps the language consistent across every place you type in Astra. */
+.input {
+  flex: 1;
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: 22px;
+  line-height: 1.35;
+  color: var(--glow-primary);
+  letter-spacing: 0;
+  background: transparent;
+  border: none;
+  outline: none;
+}
+
+.input::placeholder {
+  color: var(--glow-whisper);
+  font-style: italic;
+  opacity: 0.55;
+}
+
+.filter {
+  padding: 2px var(--space-3);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: var(--tracking-micro);
+  color: var(--glow-body);
+  background: var(--abyss-3);
+  border: var(--border-hair);
+  border-radius: var(--radius-sm);
+}
+
+.results {
+  max-height: 60vh;
+  overflow-y: auto;
+  padding-block: var(--space-3);
+}
+
+.group {
+  padding-block: var(--space-3);
+}
+
+.groupLabel {
+  padding: var(--space-3) var(--space-8) var(--space-2);
+  font-family: var(--font-mono);
+  font-size: var(--text-label);
+  letter-spacing: var(--tracking-micro);
+  color: var(--glow-whisper);
+}
+
+.result {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+  padding: var(--space-4) var(--space-8);
+  text-align: left;
+  transition: background var(--dur-micro) var(--ease-out-soft);
+  position: relative;
+}
+
+.result:hover,
+.result.active {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.result.active::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 8px;
+  bottom: 8px;
+  width: 2px;
+  background: var(--glow-primary);
+  border-radius: 0 2px 2px 0;
+}
+
+.icon {
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.iconOrb {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-full);
+  background: var(--glow-body);
+  box-shadow: var(--halo-soft);
+}
+
+.iconOrb.bright {
+  background: var(--glow-primary);
+  box-shadow: var(--halo-active);
+}
+
+.main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* Calligraphic inside the palette too — result titles share the
+   same italic serif as the query input, so the whole dialog reads
+   as one piece of writing. */
+.title {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: 17px;
+  color: var(--glow-elevated);
+  font-weight: 400;
+  line-height: 1.3;
+}
+
+.result.active .title { color: var(--glow-primary); }
+
+.title em {
+  font-style: italic;
+  color: var(--glow-primary);
+  font-weight: 400;
+}
+
+.meta {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--glow-muted);
+  letter-spacing: var(--tracking-mono);
+}
+
+.tag {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: var(--tracking-micro);
+  padding: 2px 6px;
+  border: 1px solid var(--glow-trace);
+  border-radius: 3px;
+  color: var(--glow-muted);
+}
+
+.tag.urgent {
+  color: var(--alarm);
+  border-color: var(--alarm);
+}
+
+.footer {
+  display: flex;
+  justify-content: space-between;
+  padding: var(--space-3) var(--space-8);
+  border-top: var(--border-hair);
+  font-family: var(--font-mono);
+  font-size: var(--text-label);
+  letter-spacing: var(--tracking-micro);
+  color: var(--glow-whisper);
+}
+
+.footerGroup {
+  display: flex;
+  gap: var(--space-5);
+}
+
+.footerGroup span {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.footer kbd {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  padding: 1px 5px;
+  border: 1px solid var(--glow-trace);
+  border-radius: 3px;
+  color: var(--glow-muted);
+  background: transparent;
+}
