@@ -1,0 +1,31 @@
+# Astra-web check — verify the Next.js build succeeds before
+# Railway's GitHub integration picks the commit up for deploy.
+
+name: check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    name: next build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+      - name: install
+        run: npm ci --no-audit --no-fund
+      - name: build
+        # next build is the same step Railway runs in its Dockerfile;
+        # if this fails, the deploy would have failed too. Catching
+        # it here is faster than waiting for Railway's build queue.
+        env:
+          # Build-time env. The actual runtime env comes from Railway.
+          NEXT_TELEMETRY_DISABLED: "1"
+        run: npm run build
