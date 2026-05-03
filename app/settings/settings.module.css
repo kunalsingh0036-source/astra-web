@@ -1,0 +1,264 @@
+/* /settings — matches the audit + share aesthetic so the four-page
+   set (settings · audit · notifications · share) reads as a coherent
+   system rather than four bespoke layouts. */
+
+.main {
+  max-width: 980px;
+  margin: 0 auto;
+  padding: var(--space-16) var(--space-8) var(--space-16);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-10);
+}
+
+/* Breadcrumb — same as audit/share */
+.trail {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-family: var(--font-mono);
+  font-size: var(--text-label);
+  letter-spacing: var(--tracking-micro);
+  color: var(--glow-muted);
+}
+
+.trailLeft {
+  display: flex;
+  align-items: baseline;
+  gap: 0;
+}
+.trailLeft a {
+  color: var(--glow-muted);
+  text-decoration: none;
+  transition: color var(--dur-small) var(--ease-out-soft);
+}
+.trailLeft a:hover { color: var(--glow-primary); }
+.trailArrow { margin: 0 var(--space-2); color: var(--glow-whisper); }
+.trailCurrent { color: var(--glow-body); }
+
+.errText {
+  color: var(--alarm);
+  font-family: var(--font-mono);
+  font-size: var(--text-label);
+}
+
+/* Editorial head */
+.head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.kicker {
+  font-family: var(--font-mono);
+  font-size: var(--text-label);
+  letter-spacing: var(--tracking-micro);
+  color: var(--glow-whisper);
+}
+
+.title {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 400;
+  font-size: clamp(56px, 8vw, 100px);
+  line-height: 0.98;
+  letter-spacing: -0.02em;
+  color: var(--glow-primary);
+  margin: 0;
+}
+
+/* ─── Section ─────────────────────────────────────────────── */
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.sectionHead {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding-bottom: var(--space-3);
+  border-bottom: var(--border-hair);
+}
+
+.sectionTitle {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 400;
+  font-size: 28px;
+  letter-spacing: -0.01em;
+  color: var(--glow-primary);
+  margin: 0;
+}
+
+.sectionMeta {
+  font-family: var(--font-mono);
+  font-size: var(--text-label);
+  letter-spacing: var(--tracking-micro);
+  color: var(--glow-whisper);
+  margin: 0;
+}
+
+/* ─── Mode picker ─────────────────────────────────────────── */
+
+.modeGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: var(--space-4);
+}
+
+.modeCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-5);
+  background: rgba(255, 255, 255, 0.02);
+  border: var(--border-hair);
+  border-radius: var(--radius-md);
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color var(--dur-small) var(--ease-out-soft),
+    background var(--dur-small) var(--ease-out-soft),
+    transform var(--dur-small) var(--ease-out-soft);
+  font-family: inherit;
+  color: inherit;
+}
+
+.modeCard:hover:not(:disabled) {
+  border-color: var(--glow-trace);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.modeCard:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.modeActive {
+  border-color: var(--glow-primary);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.modeCardHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.modeName {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: 22px;
+  font-weight: 400;
+  color: var(--glow-primary);
+  text-transform: lowercase;
+}
+
+.modeBadge {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: var(--tracking-micro);
+  text-transform: lowercase;
+  color: var(--glow-primary);
+  border: 1px solid var(--glow-trace);
+  border-radius: var(--radius-full);
+  padding: 2px 8px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.modeDesc {
+  font-family: var(--font-interface);
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--glow-body);
+  margin: 0;
+}
+
+.modeExample {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--glow-whisper);
+  margin: 0;
+}
+.modeExample em {
+  font-style: italic;
+  color: var(--glow-muted);
+}
+
+.modeHint {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--glow-whisper);
+  margin: 0;
+}
+.modeHint em {
+  font-style: italic;
+  color: var(--glow-body);
+}
+
+/* ─── More-settings list ──────────────────────────────────── */
+
+.subList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.subLink {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-4) var(--space-5);
+  border: var(--border-hair);
+  border-radius: var(--radius-md);
+  text-decoration: none;
+  color: inherit;
+  transition:
+    border-color var(--dur-small) var(--ease-out-soft),
+    background var(--dur-small) var(--ease-out-soft);
+}
+
+.subLink:hover {
+  border-color: var(--glow-trace);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.subTitle {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: 18px;
+  color: var(--glow-primary);
+  text-transform: lowercase;
+}
+
+.subDesc {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: var(--tracking-micro);
+  color: var(--glow-whisper);
+}
+
+/* ─── Mobile ─────────────────────────────────────────────── */
+
+@media (max-width: 640px) {
+  .main {
+    padding: var(--space-10) var(--space-4) var(--space-12);
+    gap: var(--space-8);
+  }
+  .modeGrid {
+    grid-template-columns: 1fr;
+  }
+  .modeName { font-size: 20px; }
+  .modeDesc { font-size: 13px; }
+  .sectionTitle { font-size: 22px; }
+}

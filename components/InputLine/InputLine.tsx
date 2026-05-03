@@ -37,6 +37,49 @@ function isHomeCommand(value: string): boolean {
 }
 
 /**
+ * Recognize natural-language autonomy-mode switches in the chat
+ * input and short-circuit them to the /api/autonomy endpoint instead
+ * of sending them to the agent (which would currently require approval
+ * to set the mode — recursive nightmare).
+ *
+ * Examples that match:
+ *   "switch to semi-auto"
+ *   "switch to semi auto"
+ *   "set mode to full auto"
+ *   "always ask mode"
+ *   "go to full auto"
+ *   "full auto mode please"
+ *
+ * Returns the matched mode id or null. Conservative — when the user
+ * is genuinely DISCUSSING the modes ("what does semi-auto mean?")
+ * we don't want to silently flip them. Only matches imperative
+ * patterns + the bare mode name.
+ */
+const MODE_PATTERNS: Array<{ regex: RegExp; mode: "always_ask" | "semi_auto" | "full_auto" }> = [
+  // Imperative phrasings
+  { regex: /\b(switch|set|change|go|put|flip|toggle)\b.*?\b(to|into)?\b\s*always[\s-]ask\b/i, mode: "always_ask" },
+  { regex: /\b(switch|set|change|go|put|flip|toggle)\b.*?\b(to|into)?\b\s*semi[\s-]auto\b/i, mode: "semi_auto" },
+  { regex: /\b(switch|set|change|go|put|flip|toggle)\b.*?\b(to|into)?\b\s*full[\s-]auto\b/i, mode: "full_auto" },
+  // Bare imperatives  ("always ask mode", "full auto please")
+  { regex: /^\s*always[\s-]ask(\s+mode)?\s*\.?\s*$/i, mode: "always_ask" },
+  { regex: /^\s*semi[\s-]auto(\s+mode)?\s*\.?\s*$/i, mode: "semi_auto" },
+  { regex: /^\s*full[\s-]auto(\s+mode)?\s*\.?\s*$/i, mode: "full_auto" },
+];
+
+function matchModeCommand(
+  value: string,
+): "always_ask" | "semi_auto" | "full_auto" | null {
+  const v = value.trim();
+  if (!v) return null;
+  // Skip obvious questions ("what does full auto mean?")
+  if (/^(what|how|why|when|does|can|is|are)\b/i.test(v)) return null;
+  for (const { regex, mode } of MODE_PATTERNS) {
+    if (regex.test(v)) return mode;
+  }
+  return null;
+}
+
+/**
  * The input line at the bottom of the canvas.
  *
  * Always present, always focused. Submitting opens a live stream to
@@ -53,6 +96,31 @@ export function InputLine() {
   const [voiceInterim, setVoiceInterim] = useState("");
   const baseBeforeVoiceRef = useRef<string>("");
   const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  // Attachment state. Each item is a file the user has dropped /
+  // pasted / picked. They render as chips above the textarea and
+  // get prepended to the prompt at submit time.
+  //
+  // Folders are flattened to a list of files via webkitdirectory —
+  // a single Astra prompt can attach a whole folder this way and
+  // we count them as one logical attachment with the folder name.
+  type Attachment = {
+    id: string;
+    name: string;
+    mime: string;
+    size: number;
+    /** For images: base64 data URL for inline display + send. */
+    dataUrl?: string;
+    /** For non-image files: shown as a name chip only (no preview). */
+    isImage: boolean;
+    /** For folder uploads: the folder root name. Same string across
+     *  all files dropped together via a directory pick. */
+    folder?: string;
+  };
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const folderInputRef = useRef<HTMLInputElement>(null);
+  const [dragOver, setDragOver] = useState(false);
 
   // Auto-grow the textarea on every value change. We measure scrollHeight
   // and set explicit height so the field expands to fit content. CSS
@@ -90,6 +158,135 @@ export function InputLine() {
   function goHome() {
     reset();
     if (pathname !== "/") router.push("/");
+  }
+
+  // ─── Attachments ──────────────────────────────────────────
+  //
+  // Three intake paths:
+  //   1. Click the paperclip → file picker (multi-select, images
+  //      get previews; any other file shows as a name chip).
+  //   2. Click the folder icon → webkitdirectory picker; whole
+  //      folder is attached as a single logical group.
+  //   3. Drag-drop onto the dock OR paste an image from clipboard.
+  //
+  // Sending: at submit time we build a prompt-prefix block listing
+  // attachment names + (if image) inline data URLs. The backend
+  // currently doesn't process image content blocks via the SSE
+  // path — that's a backend follow-up. The UX of attaching is
+  // already useful (Kunal can see and review what's attached
+  // before send) and the prompt-prefix gives the agent at least
+  // descriptive context.
+
+  const MAX_ATTACHMENT_BYTES = 25 * 1024 * 1024; // 25MB per file
+  const MAX_ATTACHMENTS = 20;
+
+  const readAsDataUrl = (file: File): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const r = new FileReader();
+      r.onload = () => resolve(typeof r.result === "string" ? r.result : "");
+      r.onerror = () => reject(r.error);
+      r.readAsDataURL(file);
+    });
+
+  const ingestFiles = useCallback(
+    async (files: File[], folderName?: string) => {
+      // Cap total + per-file size to avoid choking the prompt.
+      const fresh: Attachment[] = [];
+      for (const file of files) {
+        if (fresh.length + attachments.length >= MAX_ATTACHMENTS) break;
+        if (file.size > MAX_ATTACHMENT_BYTES) continue;
+        const isImage = file.type.startsWith("image/");
+        let dataUrl: string | undefined;
+        if (isImage) {
+          try {
+            dataUrl = await readAsDataUrl(file);
+          } catch {
+            /* if we can't preview, still attach as a name chip */
+          }
+        }
+        fresh.push({
+          id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          name: file.name,
+          mime: file.type || "application/octet-stream",
+          size: file.size,
+          dataUrl,
+          isImage,
+          folder: folderName,
+        });
+      }
+      if (fresh.length) {
+        setAttachments((prev) => [...prev, ...fresh]);
+      }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [attachments.length],
+  );
+
+  function removeAttachment(id: string) {
+    setAttachments((prev) => prev.filter((a) => a.id !== id));
+  }
+
+  function pickFiles() {
+    fileInputRef.current?.click();
+  }
+
+  function pickFolder() {
+    folderInputRef.current?.click();
+  }
+
+  function handleFilePick(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = e.target.files ? Array.from(e.target.files) : [];
+    void ingestFiles(files);
+    // Reset so picking the same file twice fires a change event.
+    e.target.value = "";
+  }
+
+  function handleFolderPick(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = e.target.files ? Array.from(e.target.files) : [];
+    if (!files.length) return;
+    // The webkitRelativePath looks like "MyFolder/sub/file.png".
+    // Use the first segment as the folder display name.
+    type WithRel = File & { webkitRelativePath?: string };
+    const root =
+      (files[0] as WithRel).webkitRelativePath?.split("/")[0] ||
+      "folder";
+    void ingestFiles(files, root);
+    e.target.value = "";
+  }
+
+  function handlePaste(e: React.ClipboardEvent<HTMLTextAreaElement>) {
+    const items = Array.from(e.clipboardData?.items || []);
+    const fileLikes: File[] = [];
+    for (const item of items) {
+      if (item.kind === "file") {
+        const f = item.getAsFile();
+        if (f) fileLikes.push(f);
+      }
+    }
+    if (fileLikes.length) {
+      // Only intercept paste when there's a file — text paste falls
+      // through to default behavior.
+      e.preventDefault();
+      void ingestFiles(fileLikes);
+    }
+  }
+
+  function handleDragOver(e: React.DragEvent<HTMLFormElement>) {
+    if (Array.from(e.dataTransfer?.types || []).includes("Files")) {
+      e.preventDefault();
+      setDragOver(true);
+    }
+  }
+  function handleDragLeave() {
+    setDragOver(false);
+  }
+  function handleDrop(e: React.DragEvent<HTMLFormElement>) {
+    setDragOver(false);
+    const files = Array.from(e.dataTransfer?.files || []);
+    if (files.length) {
+      e.preventDefault();
+      void ingestFiles(files);
+    }
   }
 
   // ─── Dictation (toggle-to-talk) ──────────────────────────
@@ -234,14 +431,77 @@ export function InputLine() {
       goHome();
       return;
     }
+    // Mode-switch shortcut: typing/speaking "switch to full auto" hits
+    // /api/autonomy directly instead of routing through the agent.
+    // Avoids the recursive "agent needs approval to set its own mode"
+    // problem from the ⌘K palette UX bug.
+    const mode = matchModeCommand(prompt);
+    if (mode) {
+      void fetch("/api/autonomy", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ mode }),
+      })
+        .then((r) => r.json().catch(() => ({})))
+        .then((body: { mode?: string; error?: string }) => {
+          // Surface the change as if the agent had said it — we cheat
+          // through the chat provider's local state by sending a tiny
+          // synthetic prompt that the agent will treat as a confirmation
+          // request. Cleaner: flash a toast. Simplest right now: just
+          // log it so the user sees something happened.
+          if (body.mode) {
+            // eslint-disable-next-line no-console
+            console.info("[autonomy] switched to", body.mode);
+          } else if (body.error) {
+            console.warn("[autonomy] switch failed:", body.error);
+          }
+        })
+        .catch((e) => console.warn("[autonomy] switch failed:", e));
+      // Drop a confirmation note via the chat reset/lastPrompt path
+      // so the user sees acknowledgement on screen.
+      ask(`Switched autonomy mode to ${mode.replace("_", " ")}.`);
+      return;
+    }
     ask(prompt);
   }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!value.trim() || isStreaming) return;
-    const prompt = value;
+    // Allow submit even when text is empty IF there are attachments —
+    // user can paste an image and ask "what is this?" without typing.
+    if (!value.trim() && attachments.length === 0) return;
+    if (isStreaming) return;
+    // Build the prompt: typed text + attachment context. We attach
+    // a small descriptive header so the agent can see what was sent
+    // even before backend wires up image content blocks. Once the
+    // SSE backend supports image attachments, the dataUrl values move
+    // into proper content blocks instead.
+    let prompt = value.trim();
+    if (attachments.length > 0) {
+      const folderGroups = new Map<string, number>();
+      const loose: typeof attachments = [];
+      for (const a of attachments) {
+        if (a.folder) {
+          folderGroups.set(a.folder, (folderGroups.get(a.folder) || 0) + 1);
+        } else {
+          loose.push(a);
+        }
+      }
+      const lines: string[] = [];
+      for (const [folder, n] of folderGroups) {
+        lines.push(`📁 ${folder}/  (${n} file${n === 1 ? "" : "s"})`);
+      }
+      for (const a of loose) {
+        const sizeKb = (a.size / 1024).toFixed(1);
+        lines.push(
+          `${a.isImage ? "🖼" : "📎"}  ${a.name}  (${a.mime}, ${sizeKb} KB)`,
+        );
+      }
+      const header = `[attached]\n${lines.join("\n")}`;
+      prompt = prompt ? `${header}\n\n${prompt}` : header;
+    }
     setValue("");
+    setAttachments([]);
     // Reset the textarea height after submit so the next input starts
     // at the resting one-line height rather than the post-multiline
     // expanded size.
@@ -280,18 +540,102 @@ export function InputLine() {
 
   return (
     <div className={styles.dock}>
+      {/* Attachment chips render ABOVE the input line so the dock grows
+          upward as files pile up. Each chip is dismissible. Image
+          attachments show a tiny preview thumbnail; non-image files
+          show a paperclip icon + name. */}
+      {attachments.length > 0 && (
+        <div className={styles.attachments} aria-label="Attachments">
+          {attachments.map((a) => (
+            <div key={a.id} className={styles.chip}>
+              {a.isImage && a.dataUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={a.dataUrl}
+                  alt=""
+                  className={styles.chipThumb}
+                />
+              ) : (
+                <span className={styles.chipIcon}>
+                  {a.folder ? "📁" : "📎"}
+                </span>
+              )}
+              <span className={styles.chipName}>
+                {a.folder ? `${a.folder}/` : a.name}
+              </span>
+              <button
+                type="button"
+                className={styles.chipRemove}
+                onClick={() => removeAttachment(a.id)}
+                aria-label={`Remove ${a.name}`}
+              >
+                ×
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
       <form
-        className={`${styles.line} ${listening ? styles.listening : ""}`}
+        className={`${styles.line} ${listening ? styles.listening : ""} ${dragOver ? styles.dragOver : ""}`}
         onSubmit={handleSubmit}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
       >
+        {/* Hidden file inputs — triggered by the paperclip / folder buttons. */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          multiple
+          className={styles.fileInputHidden}
+          onChange={handleFilePick}
+          aria-hidden
+          tabIndex={-1}
+        />
+        <input
+          ref={folderInputRef}
+          type="file"
+          // @ts-expect-error — webkitdirectory is non-standard but
+          // widely supported (Chrome, Edge, Safari, Firefox).
+          webkitdirectory=""
+          directory=""
+          multiple
+          className={styles.fileInputHidden}
+          onChange={handleFolderPick}
+          aria-hidden
+          tabIndex={-1}
+        />
+
         {/* Kept for screen readers — visually hidden. */}
         <span className={styles.prompt}>prompt:</span>
+
+        {/* Attach button (paperclip) — opens the image/file picker. */}
+        {!isStreaming && (
+          <button
+            type="button"
+            className={styles.attachBtn}
+            onClick={pickFiles}
+            onContextMenu={(e) => {
+              // Right-click = pick a folder instead. Discoverable hint
+              // via title; keeps the chrome minimal.
+              e.preventDefault();
+              pickFolder();
+            }}
+            aria-label="Attach files (right-click for folder)"
+            title="attach files · right-click for folder"
+          >
+            <span className={styles.attachIcon}>+</span>
+          </button>
+        )}
+
         <textarea
           ref={inputRef}
           className={styles.input}
           value={displayValue}
           onChange={(e) => setValue(e.target.value)}
           onKeyDown={handleKeyDown}
+          onPaste={handlePaste}
           placeholder={
             isStreaming
               ? "thinking — esc to stop"

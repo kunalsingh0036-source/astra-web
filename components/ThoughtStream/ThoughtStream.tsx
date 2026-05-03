@@ -2,25 +2,32 @@
 
 import styles from "./ThoughtStream.module.css";
 import { useChat } from "@/components/ChatProvider";
-import { useMode } from "@/components/ModeProvider";
 
 /**
- * ThoughtStream — the italic-serif reasoning trace that appears
- * above the response pane while Astra is thinking.
+ * ThoughtStream — telemetry-style reasoning indicator.
  *
- * Mode behavior:
- *   - monastic: only the latest thought, nothing stale.
- *     (one thing at a time is the whole point of monastic.)
- *   - editorial (default): current + a few fading stale lines.
- *   - ops: same as editorial.
+ * Old behavior was a stack of italic-serif thoughts in the center column,
+ * which visually piled on top of the ResponsePane and made everything
+ * unreadable when Astra produced a long thought trail.
+ *
+ * New behavior: a small monospace strip in the top-left corner, fixed
+ * just under the "astra" wordmark. Shows ONLY the latest thought (older
+ * ones rotate out as new ones arrive). Stays out of the way; never
+ * occludes the chat or response pane.
+ *
+ * Why latest-only: streaming UIs that show full thought history are
+ * great for debugging but exhausting to read. The user gets the most
+ * current "what's astra doing now" signal — which is what they actually
+ * want during a long-running turn.
  */
 export function ThoughtStream() {
   const { thoughts, isStreaming } = useChat();
-  const { mode } = useMode();
 
-  if (thoughts.length === 0) return null;
+  // Only the most recent thought. Older ones are kept in `thoughts`
+  // for audit/debug purposes but the UI stays minimal.
+  const latest = thoughts.length > 0 ? thoughts[thoughts.length - 1] : null;
 
-  const visible = mode === "monastic" ? thoughts.slice(0, 1) : thoughts;
+  if (!latest) return null;
 
   return (
     <div
@@ -28,15 +35,11 @@ export function ThoughtStream() {
       data-streaming={isStreaming}
       aria-live="polite"
     >
-      {visible.map((t, i) => (
-        <p
-          key={t.id}
-          className={`${styles.thought} ${t.stale ? styles.stale : ""}`}
-          style={{ animationDelay: `${i * 30}ms` }}
-        >
-          {t.text}
-        </p>
-      ))}
+      <span className={styles.label}>thinking</span>
+      <span className={styles.dot} aria-hidden />
+      <p key={latest.id} className={styles.thought}>
+        {latest.text}
+      </p>
     </div>
   );
 }

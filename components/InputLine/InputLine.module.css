@@ -183,6 +183,130 @@
   transition: background var(--dur-small) var(--ease-out-soft);
 }
 
+/* ─── Attachments ────────────────────────────────────────────
+ *
+ * Chips render above the input line. Each chip is a 28-32px tall
+ * pill with image thumbnail or paperclip icon + filename + remove
+ * button. Stacked horizontally with wrap so many attachments expand
+ * the dock upward gracefully.
+ */
+.attachments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+  /* Match the textarea's calligraphic font where the chip text
+     can read it; chips themselves stay mono for technical clarity. */
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 3px 4px 3px 8px;
+  border: 1px solid var(--glow-trace);
+  border-radius: var(--radius-full);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--glow-body);
+  max-width: 240px;
+  animation: chip-in var(--dur-small) var(--ease-out-soft) both;
+}
+
+.chipThumb {
+  width: 22px;
+  height: 22px;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+  flex-shrink: 0;
+}
+.chipIcon {
+  font-size: 14px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.chipName {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  letter-spacing: var(--tracking-micro);
+  color: var(--glow-muted);
+}
+.chipRemove {
+  background: transparent;
+  border: none;
+  color: var(--glow-whisper);
+  font-size: 16px;
+  line-height: 1;
+  width: 22px;
+  height: 22px;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--dur-small) var(--ease-out-soft);
+  flex-shrink: 0;
+}
+.chipRemove:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--glow-primary);
+}
+
+@keyframes chip-in {
+  from { opacity: 0; transform: translateY(2px) scale(0.95); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Hidden file inputs — visible enough to be clickable when needed
+   via the paperclip button, but visually invisible. */
+.fileInputHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* The attach button — small + chrome-light + lives just before
+   the textarea. Right-click on it triggers the folder picker. */
+.attachBtn {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--glow-trace);
+  border-radius: var(--radius-full);
+  background: transparent;
+  cursor: pointer;
+  flex-shrink: 0;
+  margin-right: var(--space-3);
+  transition: all var(--dur-small) var(--ease-out-soft);
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+.attachBtn:hover {
+  border-color: var(--glow-muted);
+}
+.attachIcon {
+  font-family: var(--font-mono);
+  font-size: 16px;
+  line-height: 1;
+  color: var(--glow-muted);
+  font-weight: 300;
+}
+.attachBtn:hover .attachIcon {
+  color: var(--glow-primary);
+}
+
+/* Drop-target visual feedback — when dragging files over the dock,
+   the hairline turns brighter so the user knows it'll catch. */
+.line.dragOver {
+  border-bottom-color: var(--glow-primary);
+}
+
 .mic.micLive .micDot {
   background: var(--alarm);
   animation: mic-pulse 1.2s cubic-bezier(0.4, 0, 0.6, 1) infinite;

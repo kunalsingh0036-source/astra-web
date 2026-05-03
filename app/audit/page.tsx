@@ -40,9 +40,15 @@ interface AuditResponse {
 
 const DECISIONS = ["all", "allow", "deny", "ask"] as const;
 const TIERS = ["all", "read", "write", "communicate", "privileged"] as const;
+const MODES = [
+  { id: "always_ask", label: "always ask" },
+  { id: "semi_auto", label: "semi auto" },
+  { id: "full_auto", label: "full auto" },
+] as const;
 
 type Decision = (typeof DECISIONS)[number];
 type Tier = (typeof TIERS)[number];
+type ModeId = (typeof MODES)[number]["id"];
 
 export default function AuditPage() {
   const [decision, setDecision] = useState<Decision>("all");
@@ -51,6 +57,39 @@ export default function AuditPage() {
   const [data, setData] = useState<AuditResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [currentMode, setCurrentMode] = useState<ModeId | null>(null);
+  const [pendingMode, setPendingMode] = useState<ModeId | null>(null);
+
+  // Mode loading + setting — same /api/autonomy that the palette and
+  // /settings page hit. Kept here because the audit log shows mode-
+  // at-the-time per row, so it's the natural place to ALSO change
+  // the active mode (you read what happened, decide whether to relax
+  // or tighten, change in one tap).
+  useEffect(() => {
+    fetch("/api/autonomy", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((b: { mode?: ModeId }) => setCurrentMode(b.mode ?? null))
+      .catch(() => setCurrentMode(null));
+  }, []);
+
+  async function chooseMode(mode: ModeId) {
+    if (mode === currentMode || pendingMode) return;
+    setPendingMode(mode);
+    try {
+      const res = await fetch("/api/autonomy", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ mode }),
+      });
+      const body = (await res.json()) as { mode?: ModeId; error?: string };
+      if (!res.ok || body.error) throw new Error(body.error || `HTTP ${res.status}`);
+      setCurrentMode(body.mode ?? mode);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "could not save mode");
+    } finally {
+      setPendingMode(null);
+    }
+  }
 
   useEffect(() => {
     let aborted = false;
@@ -127,6 +166,28 @@ export default function AuditPage() {
             tool from the canvas and they will appear here.
           </p>
         )}
+      </section>
+
+      {/* Mode picker — change autonomy mode right from the audit page. */}
+      <section className={styles.modeRow}>
+        <div className={styles.modeRowLabel}>
+          mode {currentMode && <em>· {currentMode.replace("_", " ")}</em>}
+        </div>
+        <div className={styles.modeRowButtons} role="tablist" aria-label="Autonomy mode">
+          {MODES.map((m) => (
+            <button
+              key={m.id}
+              type="button"
+              role="tab"
+              aria-selected={currentMode === m.id}
+              className={`${styles.filter} ${currentMode === m.id ? styles.active : ""}`}
+              onClick={() => chooseMode(m.id)}
+              disabled={!!pendingMode}
+            >
+              {pendingMode === m.id ? `${m.label}…` : m.label}
+            </button>
+          ))}
+        </div>
       </section>
 
       <section className={styles.controls}>

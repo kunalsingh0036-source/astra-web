@@ -235,6 +235,39 @@
   padding: var(--space-10) 0;
 }
 
+/* Mode picker row — sits between the head and the filters. Reuses
+   the .filter button style from the existing decision/tier filters
+   so it reads as part of the same control surface. */
+.modeRow {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4) 0;
+  border-top: var(--border-hair);
+  border-bottom: var(--border-hair);
+}
+
+.modeRowLabel {
+  font-family: var(--font-mono);
+  font-size: var(--text-label);
+  letter-spacing: var(--tracking-micro);
+  color: var(--glow-whisper);
+  text-transform: lowercase;
+}
+.modeRowLabel em {
+  font-family: var(--font-display);
+  font-style: italic;
+  color: var(--glow-primary);
+  text-transform: lowercase;
+  font-size: 15px;
+}
+
+.modeRowButtons {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
 @media (max-width: 640px) {
   .main {
     padding: var(--space-8) var(--space-4) var(--space-12);
