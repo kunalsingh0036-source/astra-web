@@ -96,6 +96,11 @@ export function InputLine() {
   const [voiceInterim, setVoiceInterim] = useState("");
   const baseBeforeVoiceRef = useRef<string>("");
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  // The whole dock — needed so we can measure its actual rendered
+  // height (input + attachments + chrome) and publish it as a CSS
+  // variable. ResponsePane uses that variable for its bottom anchor
+  // so the textarea growing tall doesn't overlap the conversation.
+  const dockRef = useRef<HTMLDivElement>(null);
 
   // Attachment state. Each item is a file the user has dropped /
   // pasted / picked. They render as chips above the textarea and
@@ -133,6 +138,34 @@ export function InputLine() {
     // stays at the previous high-water mark).
     el.style.height = "auto";
     el.style.height = `${el.scrollHeight}px`;
+  }, []);
+
+  // Publish the dock's actual rendered height as a CSS custom property
+  // (--input-dock-height). The ResponsePane reads this for its bottom
+  // anchor: when the textarea grows tall (long prompt), the pane's
+  // bottom edge lifts to match, so the input dock and conversation
+  // never overlap. Without this, a 5-line prompt covered the bottom
+  // of Astra's response.
+  useEffect(() => {
+    const el = dockRef.current;
+    if (!el || typeof window === "undefined") return;
+    const root = document.documentElement;
+    const publish = () => {
+      const h = el.getBoundingClientRect().height;
+      // 8px breathing room above the dock so the pane border doesn't
+      // kiss the dock's hairline.
+      root.style.setProperty("--input-dock-height", `${Math.ceil(h) + 8}px`);
+    };
+    publish();
+    const ro = new ResizeObserver(publish);
+    ro.observe(el);
+    // Window resize can change line-wrap; recompute then too.
+    window.addEventListener("resize", publish);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", publish);
+      root.style.removeProperty("--input-dock-height");
+    };
   }, []);
   const { open: openPalette } = useCommandPalette();
   const { mode } = useMode();
@@ -539,7 +572,7 @@ export function InputLine() {
     : value;
 
   return (
-    <div className={styles.dock}>
+    <div ref={dockRef} className={styles.dock}>
       {/* Attachment chips render ABOVE the input line so the dock grows
           upward as files pile up. Each chip is dismissible. Image
           attachments show a tiny preview thumbnail; non-image files

@@ -3,8 +3,13 @@
   top: 18vh;
   /* Stop well above the input dock so artifact action buttons
      (send / save / discard) aren't hidden under the fixed input.
-     dock bottom ≈ var(--space-12) + input height ≈ ~14vh. */
-  bottom: 18vh;
+     The input publishes its actual rendered height to
+     --input-dock-height (set by InputLine via ResizeObserver), so
+     this anchor automatically lifts when a long prompt expands the
+     textarea to multiple lines. The fallback (18vh) covers the
+     resting state and any frame where the variable isn't set yet
+     (SSR / first paint). */
+  bottom: calc(var(--input-dock-height, 18vh) + var(--space-4));
   left: 50%;
   transform: translateX(-50%);
   width: 100%;
@@ -491,7 +496,10 @@
        stream behind it can't bleed through. Opaque background, no
        translucency; claim near-full viewport. */
     top: 8vh;
-    bottom: 12vh;
+    /* Same dock-height-aware anchor on mobile (the input grows even
+       more aggressively here because lines wrap shorter). Fallback
+       12vh matches the desktop resting clearance. */
+    bottom: calc(var(--input-dock-height, 12vh) + var(--space-3));
     padding: var(--space-5) var(--space-4);
     max-width: none;
     width: calc(100% - var(--space-4));
