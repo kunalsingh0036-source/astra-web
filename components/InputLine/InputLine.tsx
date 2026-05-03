@@ -52,7 +52,20 @@ export function InputLine() {
   // so partial transcripts show up without clobbering typed text.
   const [voiceInterim, setVoiceInterim] = useState("");
   const baseBeforeVoiceRef = useRef<string>("");
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  // Auto-grow the textarea on every value change. We measure scrollHeight
+  // and set explicit height so the field expands to fit content. CSS
+  // caps max-height; once content exceeds that the textarea scrolls
+  // internally rather than pushing the page chrome.
+  const autoGrow = useCallback(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    // Reset to auto first so shrinking works (otherwise scrollHeight
+    // stays at the previous high-water mark).
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  }, []);
   const { open: openPalette } = useCommandPalette();
   const { mode } = useMode();
   const {
@@ -229,8 +242,34 @@ export function InputLine() {
     if (!value.trim() || isStreaming) return;
     const prompt = value;
     setValue("");
+    // Reset the textarea height after submit so the next input starts
+    // at the resting one-line height rather than the post-multiline
+    // expanded size.
+    requestAnimationFrame(() => {
+      if (inputRef.current) inputRef.current.style.height = "auto";
+    });
     askOrNavigate(prompt);
   }
+
+  // Standard chat-input semantics on the textarea:
+  //   Enter           → submit the prompt
+  //   Shift+Enter     → insert a newline (multi-line message)
+  //   ⌘/Ctrl+Enter    → also submit (some users default to this)
+  // IME composition is respected — Enter during composition (e.g.
+  // confirming a Chinese/Japanese candidate) does NOT submit.
+  function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (e.key !== "Enter") return;
+    if (e.nativeEvent.isComposing) return;
+    if (e.shiftKey) return; // user wants a newline
+    e.preventDefault();
+    handleSubmit(e as unknown as React.FormEvent);
+  }
+
+  // Re-grow whenever the displayed value changes (typed input OR
+  // a final voice transcript landing).
+  useEffect(() => {
+    autoGrow();
+  }, [value, voiceInterim, autoGrow]);
 
   // Composed display value — typed value + live partial transcript
   // appended non-destructively. User can still edit `value` by typing;
@@ -247,11 +286,12 @@ export function InputLine() {
       >
         {/* Kept for screen readers — visually hidden. */}
         <span className={styles.prompt}>prompt:</span>
-        <input
+        <textarea
           ref={inputRef}
           className={styles.input}
           value={displayValue}
           onChange={(e) => setValue(e.target.value)}
+          onKeyDown={handleKeyDown}
           placeholder={
             isStreaming
               ? "thinking — esc to stop"
@@ -262,6 +302,8 @@ export function InputLine() {
           disabled={isStreaming}
           aria-label="Ask astra"
           autoFocus
+          rows={1}
+          spellCheck
         />
         {voiceSupported && !isStreaming && (
           <button

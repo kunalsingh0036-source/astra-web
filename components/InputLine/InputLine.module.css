@@ -22,7 +22,12 @@
   border: none;
   border-bottom: 1px solid var(--glow-void);
   display: flex;
-  align-items: baseline;
+  /* flex-end so the mic / cursor anchor to the bottom of the
+     textarea — the baseline of its last line. With a single-line
+     textarea this is identical to the old baseline behavior;
+     with multi-line content the controls stay docked at the
+     bottom rather than floating up to follow line 1. */
+  align-items: flex-end;
   gap: 0;
   transition: border-color var(--dur-medium) var(--ease-out-soft);
 }
@@ -56,12 +61,44 @@
   border: none;
   outline: none;
   caret-color: var(--glow-primary);
+
+  /* Textarea-specific. Auto-grow is done via JS (set height =
+     scrollHeight on every value change). CSS enforces the resting
+     one-line height and the eventual cap before scroll. */
+  resize: none;
+  overflow-y: auto;
+  /* Resting height: one line. JS expands as content grows. */
+  min-height: calc(22px * 1.35);
+  /* Max ~10 lines before the textarea scrolls internally rather
+     than pushing the rest of the dock up. Roughly 40% viewport on
+     a typical laptop, leaves the orbital canvas visible. */
+  max-height: 40vh;
+  padding: 0;
+  margin: 0;
+  box-sizing: content-box;
+  display: block;
+  width: 100%;
+  /* Hairline scrollbar — only visible when content actually overflows. */
+  scrollbar-width: thin;
+  scrollbar-color: var(--glow-trace) transparent;
 }
 
 .input::placeholder {
   color: var(--glow-whisper);
   font-style: italic;
   opacity: 0.55;
+}
+
+/* WebKit scrollbar — match Firefox: hairline, transparent track. */
+.input::-webkit-scrollbar {
+  width: 4px;
+}
+.input::-webkit-scrollbar-thumb {
+  background: var(--glow-trace);
+  border-radius: 2px;
+}
+.input::-webkit-scrollbar-track {
+  background: transparent;
 }
 
 /* Slow breathing cursor — only visible when the field is empty. Blinks
@@ -192,6 +229,10 @@
   .input {
     font-size: 18px;
     line-height: 1.3;
+    min-height: calc(18px * 1.3);
+    /* Mobile: tighter cap so the keyboard + textarea + dock chrome
+       all fit comfortably above the on-screen keyboard. */
+    max-height: 30vh;
   }
   .mic {
     width: 32px;
