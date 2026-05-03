@@ -198,6 +198,11 @@ export function ResponsePane() {
                   · answered in {(turn.durationMs / 1000).toFixed(1)}s
                 </span>
               )}
+              {turn.interrupted && (
+                <span className={styles.interruptedChip}>
+                  · interrupted — partial response recovered
+                </span>
+              )}
             </header>
             <p className={styles.prompt}>{turn.prompt}</p>
             {turn.response && (

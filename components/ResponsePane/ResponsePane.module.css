@@ -119,6 +119,18 @@
   color: var(--glow-whisper);
 }
 
+/* Interrupted-turn marker — surfaces when a turn was in flight at the
+   time of refresh/deploy/connection-drop. We recovered the partial
+   response from localStorage; the user sees what landed plus this
+   chip so they know it's not a finished answer. */
+.interruptedChip {
+  font-style: italic;
+  font-family: var(--font-display);
+  font-size: 12px;
+  color: var(--alarm);
+  letter-spacing: 0;
+}
+
 /* Calligraphic throughout the dialogue — the user's question and
    Astra's response both render in italic serif on the same line
    weight. Only chrome labels (meta, buttons, error banners) keep
