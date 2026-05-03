@@ -42,6 +42,57 @@
   }
 }
 
+/* ── Per-turn container ─────────────────────────────────────
+ *
+ * Each turn = one user prompt + one Astra response (+ artifacts).
+ * Stacked vertically inside the pane, with a hairline separator
+ * between turns. Older turns sit at the top and the latest /
+ * in-flight turn sits at the bottom (auto-scrolled to).
+ *
+ * Older turns are slightly muted so the latest is the visual
+ * anchor without losing the earlier exchanges. */
+.turn {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-5) 0;
+  border-bottom: var(--border-hair);
+}
+.turn:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+.turn:first-child {
+  padding-top: 0;
+}
+
+.turnOlder {
+  opacity: 0.6;
+  transition: opacity var(--dur-medium) var(--ease-out-soft);
+}
+.turnOlder:hover {
+  opacity: 1;
+}
+
+.turnLatest,
+.turnCurrent {
+  opacity: 1;
+}
+
+.turnHead {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  font-family: var(--font-mono);
+  font-size: var(--text-label);
+  letter-spacing: var(--tracking-micro);
+  color: var(--glow-whisper);
+  padding-bottom: var(--space-1);
+}
+
+/* Legacy classes kept for any code paths that still reference
+   them — should be a no-op now that the new turn structure is
+   in place, but harmless if anything still uses them. */
 .head {
   display: flex;
   flex-direction: column;
