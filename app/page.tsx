@@ -2,7 +2,6 @@ import { AmbientSignals } from "@/components/AmbientSignals";
 import { Canvas } from "@/components/Canvas/Canvas";
 import { InputLine } from "@/components/InputLine/InputLine";
 import { ResponsePane } from "@/components/ResponsePane/ResponsePane";
-import { ThoughtStream } from "@/components/ThoughtStream/ThoughtStream";
 import { TopBar } from "@/components/TopBar/TopBar";
 import styles from "./page.module.css";
 
@@ -24,14 +23,15 @@ export const dynamic = "force-dynamic";
  *   1. Starfield (body::before)
  *   2. Canvas — orbits + you-point; orbs burn crimson when an
  *      agent needs attention
- *   3. ThoughtStream — italic reasoning appears mid-canvas while
- *      Astra is thinking
- *   4. AmbientSignals — italic whispers at the top when something
+ *   3. AmbientSignals — italic whispers at the top when something
  *      needs attention (overdue invoice, unread email, etc.).
  *      Silent when quiet.
- *   5. ResponsePane — Astra's final answer
- *   6. TopBar + InputLine — minimal chrome
- *   7. Signature — the quiet wordmark (rendered by RootLayout)
+ *   4. ResponsePane — Astra's reasoning + final answer (the reasoning
+ *      lives inside the pane as a collapsible "show reasoning" panel,
+ *      replacing the old top-left ThoughtStream which truncated to
+ *      half-sentences and was useless as-is)
+ *   5. TopBar + InputLine — minimal chrome
+ *   6. Signature — the quiet wordmark (rendered by RootLayout)
  */
 export default function HomePage() {
   return (
@@ -39,7 +39,6 @@ export default function HomePage() {
       <TopBar />
       <Canvas />
       <AmbientSignals />
-      <ThoughtStream />
       <ResponsePane />
       <InputLine />
     </main>

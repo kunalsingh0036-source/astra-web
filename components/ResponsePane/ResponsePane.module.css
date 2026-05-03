@@ -104,6 +104,125 @@
   background: rgba(249, 112, 102, 0.04);
 }
 
+/* ── Live "thinking" indicator ───────────────────────────────
+ *
+ * Shown while astra is streaming AND no response text has arrived.
+ * Once the response starts, the streaming text itself signals
+ * progress. Small label + pulsing dot, no half-sentence text. */
+.thinking {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) 0;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: var(--tracking-micro);
+  color: var(--glow-whisper);
+}
+.thinkingDot {
+  width: 5px;
+  height: 5px;
+  border-radius: var(--radius-full);
+  background: var(--glow-primary);
+  animation: think-pulse 1.4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+.thinkingLabel {
+  font-style: normal;
+  text-transform: lowercase;
+}
+@keyframes think-pulse {
+  0%, 100% { opacity: 0.3; transform: scale(1); }
+  50%      { opacity: 1; transform: scale(1.4); }
+}
+
+/* ── Reasoning disclosure ────────────────────────────────────
+ *
+ * Collapsible panel with the full thought trail. Default closed so
+ * the pane shows the response, not the meta. Click to reveal numbered
+ * thoughts in monospace — no truncation. Replaces the old top-left
+ * ThoughtStream that displayed half-sentences. */
+.reasoning {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3) 0;
+  border-bottom: var(--border-hair);
+}
+
+.reasoningToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0;
+  background: transparent;
+  border: none;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: var(--tracking-micro);
+  color: var(--glow-muted);
+  cursor: pointer;
+  text-transform: lowercase;
+  align-self: flex-start;
+  transition: color var(--dur-small) var(--ease-out-soft);
+}
+.reasoningToggle:hover {
+  color: var(--glow-primary);
+}
+
+.reasoningCaret {
+  font-size: 10px;
+  width: 10px;
+  display: inline-block;
+  text-align: center;
+  color: var(--glow-whisper);
+}
+
+.reasoningCount {
+  color: var(--glow-whisper);
+}
+
+.reasoningList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  /* Cap height so a long thought trail doesn't push the response
+     off-screen. Internal scrollbar keeps the pane compact. */
+  max-height: 280px;
+  overflow-y: auto;
+  padding-right: var(--space-2);
+  scrollbar-width: thin;
+  scrollbar-color: var(--glow-trace) transparent;
+}
+.reasoningList::-webkit-scrollbar { width: 4px; }
+.reasoningList::-webkit-scrollbar-thumb {
+  background: var(--glow-trace);
+  border-radius: 2px;
+}
+
+.reasoningItem {
+  display: flex;
+  gap: var(--space-3);
+  padding: var(--space-1) 0;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--glow-body);
+}
+.reasoningIndex {
+  flex-shrink: 0;
+  width: 18px;
+  text-align: right;
+  color: var(--glow-whisper);
+  font-variant-numeric: tabular-nums;
+}
+.reasoningText {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 .dismiss {
   align-self: flex-end;
   font-family: var(--font-mono);
