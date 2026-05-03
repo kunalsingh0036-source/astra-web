@@ -4,6 +4,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -100,12 +101,125 @@ const initial: ChatState = {
   lastEventAt: null,
 };
 
+// localStorage key + cap so a runaway-long conversation can't blow
+// the 5MB browser quota. 50 turns is plenty for one continuous
+// conversation; older turns drop out FIFO.
+const STORAGE_KEY = "astra:chat:v1";
+const MAX_PERSISTED_TURNS = 50;
+const STORAGE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+
+interface PersistedState {
+  sessionId: string | null;
+  history: Turn[];
+  lastDurationMs: number | null;
+  lastCostUsd: number | null;
+  /** When the snapshot was written. Stale snapshots beyond TTL are
+   *  ignored on hydrate so we don't replay ancient conversations. */
+  savedAt: number;
+  /** If the page refreshed mid-stream, this holds what was being asked.
+   *  Surfaced as a "previous turn was interrupted by refresh" banner. */
+  interruptedPrompt?: string | null;
+  interruptedAt?: number | null;
+}
+
+function loadPersisted(): PersistedState | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as PersistedState;
+    if (
+      !parsed.savedAt ||
+      Date.now() - parsed.savedAt > STORAGE_TTL_MS
+    ) {
+      window.localStorage.removeItem(STORAGE_KEY);
+      return null;
+    }
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function persistState(state: ChatState) {
+  if (typeof window === "undefined") return;
+  try {
+    const trimmedHistory = state.history.slice(-MAX_PERSISTED_TURNS);
+    const snapshot: PersistedState = {
+      sessionId: state.sessionId,
+      history: trimmedHistory,
+      lastDurationMs: state.lastDurationMs,
+      lastCostUsd: state.lastCostUsd,
+      savedAt: Date.now(),
+      // If we're streaming when the user navigates away, capture
+      // what was in flight so the next page load can warn them
+      // that the previous turn was interrupted.
+      interruptedPrompt: state.isStreaming ? state.lastPrompt : null,
+      interruptedAt: state.isStreaming ? state.turnStartedAt : null,
+    };
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot));
+  } catch (e) {
+    // Quota exceeded or storage disabled — don't break the UI over it.
+    if (typeof console !== "undefined") {
+      console.warn("[chat] persist failed:", e);
+    }
+  }
+}
+
+function clearPersisted() {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.removeItem(STORAGE_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
 export function ChatProvider({ children }: { children: React.ReactNode }) {
-  const [state, setState] = useState<ChatState>(initial);
+  // Hydrate from localStorage on first render so a page refresh
+  // doesn't kill conversation context. The session id is the most
+  // important field — restoring it lets the next /api/chat call
+  // resume the SDK's session state on the server.
+  const [state, setState] = useState<ChatState>(() => {
+    const saved = loadPersisted();
+    if (!saved) return initial;
+    return {
+      ...initial,
+      sessionId: saved.sessionId,
+      history: saved.history || [],
+      lastDurationMs: saved.lastDurationMs,
+      lastCostUsd: saved.lastCostUsd,
+    };
+  });
   const abortRef = useRef<AbortController | null>(null);
   // Track the latest session_id outside of React state so `ask` can
   // read it synchronously without waiting for a re-render.
   const sessionRef = useRef<string | null>(null);
+
+  // Recover session_id from localStorage on mount so the first
+  // ask() after a refresh resumes the prior SDK session rather than
+  // starting a fresh one. This is what gives Astra "memory across
+  // refreshes" without needing a server-side resume mechanism.
+  useEffect(() => {
+    const saved = loadPersisted();
+    if (saved?.sessionId) {
+      sessionRef.current = saved.sessionId;
+    }
+  }, []);
+
+  // Persist whenever sessionId, history, or in-flight state changes.
+  // Throttle is unnecessary — these state transitions are rare and
+  // the snapshot is small.
+  useEffect(() => {
+    persistState(state);
+  }, [
+    state.sessionId,
+    state.history,
+    state.isStreaming,
+    state.lastPrompt,
+    state.lastDurationMs,
+    state.lastCostUsd,
+  ]);
 
   const ask = useCallback(async (prompt: string) => {
     const trimmed = prompt.trim();
@@ -154,6 +268,9 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     abortRef.current?.abort();
     sessionRef.current = null;
     setState(initial);
+    // Also wipe the persisted snapshot so a page refresh after dismiss
+    // really starts clean, not restores the old conversation.
+    clearPersisted();
   }, []);
 
   const value = useMemo<ChatContextValue>(

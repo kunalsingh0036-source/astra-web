@@ -141,12 +141,23 @@ export function ResponsePane() {
   const bodyRef = useRef<HTMLDivElement>(null);
   const [reasoningOpen, setReasoningOpen] = useState(false);
 
-  // Auto-scroll while the current turn streams AND when a new turn
-  // lands in history — both signal "show me what just happened."
+  // When a NEW turn starts (history.length changes OR a new prompt
+  // is set), scroll the latest turn's TOP into view — not the bottom.
+  // The user reads top-to-bottom at their own pace.
+  //
+  // We deliberately do NOT auto-follow text_delta streaming — chasing
+  // the bottom while the response grows means the user can never
+  // start reading from the top of a long response. They scroll down
+  // when they're ready.
+  const turnCount = history.length + (lastPrompt && isStreaming ? 1 : 0);
   useEffect(() => {
     if (!paneRef.current) return;
-    paneRef.current.scrollTop = paneRef.current.scrollHeight;
-  }, [response, history.length]);
+    const articles = paneRef.current.querySelectorAll("article");
+    const latest = articles[articles.length - 1];
+    if (latest) {
+      latest.scrollIntoView({ block: "start", behavior: "smooth" });
+    }
+  }, [turnCount, lastPrompt]);
 
   if (
     !lastPrompt &&
