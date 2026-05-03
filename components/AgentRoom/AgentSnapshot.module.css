@@ -1,0 +1,301 @@
+/* AgentSnapshot — body styles for per-agent live snapshots
+   (email, finance, whatsapp custom layouts; generic for the rest) */
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-5) var(--space-6);
+  background: rgba(255, 255, 255, 0.02);
+  border: var(--border-hair);
+  border-radius: var(--radius-md);
+}
+
+.head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: var(--tracking-micro);
+  text-transform: lowercase;
+}
+
+.tagOk {
+  color: var(--glow-primary);
+  border: 1px solid var(--glow-trace);
+  background: rgba(255, 255, 255, 0.04);
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  font-size: 10px;
+}
+.tagAlarm {
+  color: var(--alarm);
+  border: 1px solid rgba(249, 112, 102, 0.4);
+  background: rgba(249, 112, 102, 0.06);
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  font-size: 10px;
+}
+
+.headMeta {
+  color: var(--glow-whisper);
+}
+
+.healthBody {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--glow-body);
+  margin: 0;
+  max-width: 60ch;
+}
+
+.empty {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: 16px;
+  color: var(--glow-muted);
+  margin: 0;
+}
+
+/* Summary line for email */
+.summary {
+  padding: 0 var(--space-2);
+}
+.summaryText {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: 22px;
+  color: var(--glow-body);
+  margin: 0;
+}
+.summaryText em {
+  color: var(--glow-primary);
+  font-style: normal;
+  font-weight: 500;
+}
+
+/* Hero — the "what to read first" / "overdue amount" focal block */
+.hero {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-6);
+  background: rgba(255, 255, 255, 0.03);
+  border: var(--border-hair);
+  border-radius: var(--radius-md);
+}
+.heroAlarm {
+  border-color: var(--alarm);
+  background: rgba(249, 112, 102, 0.04);
+  box-shadow: 0 0 20px rgba(249, 112, 102, 0.1) inset;
+}
+
+.heroKicker {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: var(--tracking-micro);
+  text-transform: lowercase;
+  color: var(--glow-whisper);
+}
+
+.heroFrom {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--glow-elevated);
+  margin: 0;
+}
+
+.heroSubject {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 400;
+  font-size: clamp(28px, 4vw, 42px);
+  line-height: 1.1;
+  color: var(--glow-primary);
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+
+.heroSnippet {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--glow-body);
+  margin: 0;
+  max-width: 60ch;
+}
+
+.heroNumber {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 400;
+  font-size: clamp(56px, 8vw, 96px);
+  line-height: 0.95;
+  color: var(--glow-primary);
+  letter-spacing: -0.03em;
+}
+
+.heroActions {
+  display: flex;
+  gap: var(--space-3);
+  margin-top: var(--space-2);
+}
+.heroAction {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: var(--tracking-micro);
+  text-transform: lowercase;
+  color: var(--glow-primary);
+  text-decoration: none;
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--glow-trace);
+  border-radius: var(--radius-full);
+  background: rgba(255, 255, 255, 0.03);
+  transition: background var(--dur-small) var(--ease-out-soft),
+    border-color var(--dur-small) var(--ease-out-soft);
+}
+.heroAction:hover {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: var(--glow-primary);
+}
+
+/* Section blocks (recurring container) */
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.sectionHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding-bottom: var(--space-2);
+  border-bottom: var(--border-hair);
+}
+.sectionTitle {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 400;
+  font-size: 22px;
+  color: var(--glow-primary);
+  margin: 0;
+  text-transform: lowercase;
+}
+.sectionTitleQuiet {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: var(--tracking-micro);
+  text-transform: lowercase;
+  color: var(--glow-whisper);
+  margin: 0;
+}
+.sectionMeta {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: var(--tracking-micro);
+  text-transform: lowercase;
+  color: var(--glow-whisper);
+}
+
+/* Metric tile grid */
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: var(--space-3);
+}
+.tile {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-4);
+  background: rgba(255, 255, 255, 0.02);
+  border: var(--border-hair);
+  border-radius: var(--radius-sm);
+}
+.tileLabel {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: var(--tracking-micro);
+  text-transform: lowercase;
+  color: var(--glow-whisper);
+}
+.tileValue {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: 22px;
+  color: var(--glow-primary);
+  font-variant-numeric: tabular-nums;
+}
+.tileUrgent {
+  color: var(--alarm);
+}
+
+/* Recurring "thread row" pattern for invoices, expenses, conversations */
+.threads {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.thread {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-3) var(--space-4);
+  background: rgba(255, 255, 255, 0.02);
+  border: var(--border-hair);
+  border-radius: var(--radius-sm);
+}
+.threadTop {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: var(--tracking-micro);
+  text-transform: lowercase;
+}
+.threadFrom {
+  color: var(--glow-elevated);
+}
+.threadTime {
+  color: var(--glow-whisper);
+}
+.threadSubject {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: 17px;
+  color: var(--glow-primary);
+}
+.threadPreview {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--glow-body);
+  margin: 0;
+}
+
+@media (max-width: 640px) {
+  .panel,
+  .hero {
+    padding: var(--space-4);
+  }
+  .heroSubject {
+    font-size: 24px;
+  }
+  .heroNumber {
+    font-size: 56px;
+  }
+  .summaryText {
+    font-size: 18px;
+  }
+  .sectionTitle {
+    font-size: 18px;
+  }
+}

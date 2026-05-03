@@ -1,0 +1,288 @@
+/* Agent activity feed — live timeline of running + recent + tool events */
+
+.feed {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  padding: var(--space-6);
+  background: rgba(255, 255, 255, 0.02);
+  border: var(--border-hair);
+  border-radius: var(--radius-md);
+}
+
+.feedHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding-bottom: var(--space-3);
+  border-bottom: var(--border-hair);
+}
+
+.feedTitle {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: 22px;
+  color: var(--glow-primary);
+  text-transform: lowercase;
+}
+
+.feedMeta {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: var(--tracking-micro);
+  color: var(--glow-whisper);
+  text-transform: lowercase;
+}
+
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-full);
+  flex-shrink: 0;
+}
+.dotLive {
+  background: var(--glow-primary);
+  box-shadow: 0 0 8px var(--halo-soft, rgba(255, 255, 255, 0.4));
+  animation: feed-pulse 1.6s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+.dotStale {
+  background: var(--alarm);
+  opacity: 0.6;
+}
+@keyframes feed-pulse {
+  0%, 100% { opacity: 0.4; }
+  50%      { opacity: 1; }
+}
+
+/* Section label inside the feed */
+.sectionLabel {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: var(--tracking-micro);
+  text-transform: lowercase;
+  color: var(--glow-whisper);
+  margin-bottom: var(--space-2);
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* Running block — primary visual emphasis */
+.runningBlock {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--glow-trace);
+  border-radius: var(--radius-sm);
+}
+.runningLabel {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: var(--tracking-micro);
+  text-transform: lowercase;
+  color: var(--glow-primary);
+}
+
+.running {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.runningTop {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: var(--tracking-micro);
+  color: var(--glow-body);
+}
+.runningPulse {
+  width: 7px;
+  height: 7px;
+  border-radius: var(--radius-full);
+  background: var(--glow-primary);
+  box-shadow: 0 0 10px var(--glow-primary);
+  animation: feed-pulse 1.2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+.runningTime {
+  font-variant-numeric: tabular-nums;
+  color: var(--glow-elevated);
+}
+.runningTools {
+  color: var(--glow-whisper);
+}
+
+.runningPrompt {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: 16px;
+  line-height: 1.45;
+  color: var(--glow-body);
+  margin: 0;
+}
+
+/* Recent turns list */
+.turnList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+.turnItem {
+  display: flex;
+  gap: var(--space-3);
+  padding: var(--space-3) 0;
+  border-top: var(--border-hair);
+  align-items: flex-start;
+}
+.turnItem:first-child {
+  border-top: none;
+}
+
+.statusPip {
+  width: 5px;
+  height: 5px;
+  border-radius: var(--radius-full);
+  margin-top: 8px;
+  flex-shrink: 0;
+}
+.pipOk { background: var(--glow-primary); }
+.pipFail { background: var(--alarm); }
+.pipMuted { background: var(--glow-trace); }
+
+.turnText {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.turnPrompt {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--glow-body);
+  margin: 0;
+}
+.turnMeta {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: var(--tracking-micro);
+  color: var(--glow-whisper);
+  margin: 0;
+}
+
+/* Audit-event timeline */
+.eventList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+.event {
+  display: grid;
+  grid-template-columns: 70px 1fr auto;
+  gap: var(--space-3);
+  align-items: center;
+  padding: var(--space-2) 0;
+  border-top: var(--border-hair);
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+.event:first-child {
+  border-top: none;
+}
+.eventTime {
+  color: var(--glow-whisper);
+  font-variant-numeric: tabular-nums;
+}
+.eventTool {
+  color: var(--glow-body);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.eventDecision {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-micro);
+  padding: 2px 6px;
+  border-radius: var(--radius-full);
+}
+.decisionOk {
+  color: var(--glow-primary);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--glow-trace);
+}
+.decisionDeny {
+  color: var(--alarm);
+  background: rgba(249, 112, 102, 0.06);
+  border: 1px solid rgba(249, 112, 102, 0.4);
+}
+.decisionAsk {
+  color: var(--glow-elevated);
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--glow-trace);
+}
+
+.moreLink {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--glow-whisper);
+  text-decoration: none;
+  margin-top: var(--space-2);
+  align-self: flex-start;
+  text-transform: lowercase;
+  transition: color var(--dur-small) var(--ease-out-soft);
+}
+.moreLink:hover {
+  color: var(--glow-primary);
+}
+
+/* Empty state */
+.empty {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-4) 0;
+}
+.emptyText {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: 16px;
+  color: var(--glow-body);
+  margin: 0;
+}
+.emptyHint {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--glow-whisper);
+  margin: 0;
+  letter-spacing: var(--tracking-micro);
+}
+
+@media (max-width: 640px) {
+  .feed {
+    padding: var(--space-4);
+  }
+  .feedTitle {
+    font-size: 18px;
+  }
+  .event {
+    grid-template-columns: 60px 1fr auto;
+    font-size: 10px;
+  }
+}
