@@ -155,6 +155,71 @@
   background: rgba(249, 112, 102, 0.04);
 }
 
+/* ── Live status bar — heartbeat for in-flight turns ────────
+ *
+ * Visible whenever a turn is streaming. Shows elapsed time, tool
+ * count, thought count, currently-running tool, and a stalled-
+ * warning if no event has arrived in the last 30s. The dot pulses
+ * on healthy state; turns amber + stops pulsing when stalled. */
+.status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) 0;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: var(--tracking-micro);
+  color: var(--glow-muted);
+}
+.statusDot {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-full);
+  background: var(--glow-primary);
+  flex-shrink: 0;
+  animation: status-pulse 1.4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+@keyframes status-pulse {
+  0%, 100% { opacity: 0.3; transform: scale(1); }
+  50%      { opacity: 1; transform: scale(1.5); }
+}
+.statusElapsed {
+  color: var(--glow-body);
+  font-variant-numeric: tabular-nums;
+}
+.statusSep {
+  color: var(--glow-trace);
+}
+.statusCount {
+  color: var(--glow-whisper);
+  font-variant-numeric: tabular-nums;
+}
+.statusRunning {
+  color: var(--glow-whisper);
+}
+.statusRunning em {
+  font-style: italic;
+  color: var(--glow-muted);
+  font-family: var(--font-display);
+  font-size: 12px;
+}
+.statusStallText {
+  color: var(--alarm);
+  font-style: italic;
+  font-family: var(--font-display);
+  font-size: 12px;
+}
+/* Stalled state: amber dot, no animation, alarm-color elapsed time. */
+.statusStalled .statusDot {
+  background: var(--alarm);
+  animation: none;
+  opacity: 1;
+}
+.statusStalled .statusElapsed {
+  color: var(--alarm);
+}
+
 /* ── Live "thinking" indicator ───────────────────────────────
  *
  * Shown while astra is streaming AND no response text has arrived.

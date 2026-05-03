@@ -69,6 +69,11 @@ export interface ChatState {
   sessionId: string | null;
   /** Completed turns in this conversation (oldest → newest). */
   history: Turn[];
+  /** epoch ms — when the in-flight turn started. null if no active turn. */
+  turnStartedAt: number | null;
+  /** epoch ms — last time ANY event arrived (text/tool/thought). Used by
+   *  the live status bar to detect stalls (no events for N seconds). */
+  lastEventAt: number | null;
 }
 
 interface ChatContextValue extends ChatState {
@@ -91,6 +96,8 @@ const initial: ChatState = {
   lastCostUsd: null,
   sessionId: null,
   history: [],
+  turnStartedAt: null,
+  lastEventAt: null,
 };
 
 export function ChatProvider({ children }: { children: React.ReactNode }) {
@@ -110,6 +117,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     abortRef.current = controller;
 
     // Reset the *turn-local* fields but keep session + history.
+    const now = Date.now();
     setState((s) => ({
       ...s,
       isStreaming: true,
@@ -119,6 +127,8 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       tools: [],
       artifacts: [],
       error: null,
+      turnStartedAt: now,
+      lastEventAt: now,
     }));
 
     try {
@@ -166,71 +176,87 @@ function applyEvent(
   sessionRef: React.MutableRefObject<string | null>,
   currentPrompt: string,
 ) {
+  // Bump lastEventAt on every event so the live status bar can detect
+  // stalls (no event for N seconds while still streaming).
+  const eventArrivedAt = Date.now();
   setState((s) => {
-    switch (event.type) {
-      case "session":
-        if (event.session_id) {
-          sessionRef.current = event.session_id;
-        }
-        return { ...s, sessionId: event.session_id || s.sessionId };
-      case "thought": {
-        // New thought goes live; previous thoughts fade to stale.
-        const next: Thought[] = [
-          { id: crypto.randomUUID(), text: event.text, stale: false },
-          ...s.thoughts.slice(0, 5).map((t) => ({ ...t, stale: true })),
-        ];
-        return { ...s, thoughts: next };
-      }
-      case "tool_call": {
-        const agent = (event.agent as AgentName | null) ?? null;
-        return {
-          ...s,
-          tools: [
-            ...s.tools,
-            { id: event.id, name: event.name, agent, state: "running" },
-          ],
-        };
-      }
-      case "tool_result": {
-        const tools = s.tools.map((t) =>
-          t.id === event.id
-            ? { ...t, state: event.is_error ? "error" : "ok", preview: event.preview }
-            : t,
-        );
-        // TypeScript needs the narrowed state field
-        return { ...s, tools: tools as ToolActivity[] };
-      }
-      case "text_delta":
-        return { ...s, response: s.response + event.content };
-      case "artifact": {
-        const parsed = parseArtifact(event.content);
-        if (!parsed) return s;
-        return { ...s, artifacts: [...s.artifacts, parsed] };
-      }
-      case "done": {
-        const turn: Turn = {
-          id: crypto.randomUUID(),
-          prompt: currentPrompt,
-          response: s.response,
-          artifacts: s.artifacts,
-          toolCount: s.tools.length,
-          durationMs: event.duration_ms,
-          costUsd: event.cost_usd ?? null,
-        };
-        // "Task completed" chime — fires on every successful turn.
-        // Respects the user's sound toggle; silent if off.
-        playChime("task");
-        return {
-          ...s,
-          isStreaming: false,
-          lastDurationMs: event.duration_ms,
-          lastCostUsd: event.cost_usd ?? null,
-          thoughts: s.thoughts.map((t) => ({ ...t, stale: true })),
-          history: [...s.history, turn],
-        };
-      }
-      case "error":
-        return { ...s, isStreaming: false, error: event.message };
-    }
+    // The case-specific switch returns the new state; we mix in
+    // lastEventAt at the end to avoid repeating it in every branch.
+    const updated = applyEventInner(event, s, sessionRef, currentPrompt);
+    return { ...updated, lastEventAt: eventArrivedAt };
   });
+}
+
+function applyEventInner(
+  event: ChatEvent,
+  s: ChatState,
+  sessionRef: React.MutableRefObject<string | null>,
+  currentPrompt: string,
+): ChatState {
+  // The original applyEvent body, restructured to return the new state
+  // instead of calling setState directly. The wrapper above adds
+  // lastEventAt uniformly so we don't have to repeat it in each case.
+  switch (event.type) {
+    case "session":
+      if (event.session_id) {
+        sessionRef.current = event.session_id;
+      }
+      return { ...s, sessionId: event.session_id || s.sessionId };
+    case "thought": {
+      const next: Thought[] = [
+        { id: crypto.randomUUID(), text: event.text, stale: false },
+        ...s.thoughts.slice(0, 5).map((t) => ({ ...t, stale: true })),
+      ];
+      return { ...s, thoughts: next };
+    }
+    case "tool_call": {
+      const agent = (event.agent as AgentName | null) ?? null;
+      return {
+        ...s,
+        tools: [
+          ...s.tools,
+          { id: event.id, name: event.name, agent, state: "running" },
+        ],
+      };
+    }
+    case "tool_result": {
+      const tools = s.tools.map((t) =>
+        t.id === event.id
+          ? { ...t, state: event.is_error ? "error" : "ok", preview: event.preview }
+          : t,
+      );
+      return { ...s, tools: tools as ToolActivity[] };
+    }
+    case "text_delta":
+      return { ...s, response: s.response + event.content };
+    case "artifact": {
+      const parsed = parseArtifact(event.content);
+      if (!parsed) return s;
+      return { ...s, artifacts: [...s.artifacts, parsed] };
+    }
+    case "done": {
+      const turn: Turn = {
+        id: crypto.randomUUID(),
+        prompt: currentPrompt,
+        response: s.response,
+        artifacts: s.artifacts,
+        toolCount: s.tools.length,
+        durationMs: event.duration_ms,
+        costUsd: event.cost_usd ?? null,
+      };
+      playChime("task");
+      return {
+        ...s,
+        isStreaming: false,
+        lastDurationMs: event.duration_ms,
+        lastCostUsd: event.cost_usd ?? null,
+        thoughts: s.thoughts.map((t) => ({ ...t, stale: true })),
+        history: [...s.history, turn],
+        turnStartedAt: null,
+      };
+    }
+    case "error":
+      return { ...s, isStreaming: false, error: event.message, turnStartedAt: null };
+  }
+  return s;
 }

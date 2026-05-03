@@ -2,9 +2,106 @@
 
 import { useEffect, useRef, useState } from "react";
 import styles from "./ResponsePane.module.css";
-import { useChat } from "@/components/ChatProvider";
+import { useChat, type ToolActivity } from "@/components/ChatProvider";
 import { ArtifactView } from "@/components/Artifacts/Artifact";
 import { renderInline } from "./renderLite";
+
+
+/**
+ * Live status footer for an in-flight turn.
+ *
+ * Shows: elapsed seconds (ticking every 1s) · tools count · thoughts
+ * count · current running tool name · stalled-warning if no event
+ * arrived in the last STALL_THRESHOLD_MS.
+ *
+ * The point: when Astra is grinding on a long task ("study this
+ * website completely"), the user needs a visible heartbeat so they
+ * know progress is happening rather than the connection being dead.
+ */
+const STALL_THRESHOLD_MS = 30_000; // 30s with no event = "stalled"
+
+function StreamStatus({
+  startedAt,
+  lastEventAt,
+  tools,
+  thoughtCount,
+}: {
+  startedAt: number | null;
+  lastEventAt: number | null;
+  tools: ToolActivity[];
+  thoughtCount: number;
+}) {
+  // Tick once per second so the elapsed-time display updates even
+  // when no events are flowing through.
+  const [, forceTick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => forceTick((n) => n + 1), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  if (!startedAt) return null;
+
+  const now = Date.now();
+  const elapsedSec = Math.max(0, Math.floor((now - startedAt) / 1000));
+  const sinceLastEventMs = lastEventAt ? now - lastEventAt : 0;
+  const isStalled = lastEventAt !== null && sinceLastEventMs > STALL_THRESHOLD_MS;
+  const runningTool = tools.find((t) => t.state === "running");
+  const completedTools = tools.filter((t) => t.state !== "running").length;
+
+  // Format elapsed: "12s" / "2m 5s"
+  let elapsedLabel: string;
+  if (elapsedSec < 60) {
+    elapsedLabel = `${elapsedSec}s`;
+  } else {
+    const m = Math.floor(elapsedSec / 60);
+    const s = elapsedSec % 60;
+    elapsedLabel = s > 0 ? `${m}m ${s}s` : `${m}m`;
+  }
+
+  return (
+    <div
+      className={`${styles.status} ${isStalled ? styles.statusStalled : ""}`}
+      role="status"
+      aria-live="polite"
+    >
+      <span className={styles.statusDot} aria-hidden />
+      <span className={styles.statusElapsed}>{elapsedLabel}</span>
+      {tools.length > 0 && (
+        <>
+          <span className={styles.statusSep}>·</span>
+          <span className={styles.statusCount}>
+            {completedTools}/{tools.length}{" "}
+            {tools.length === 1 ? "tool" : "tools"}
+          </span>
+        </>
+      )}
+      {thoughtCount > 0 && (
+        <>
+          <span className={styles.statusSep}>·</span>
+          <span className={styles.statusCount}>
+            {thoughtCount} {thoughtCount === 1 ? "thought" : "thoughts"}
+          </span>
+        </>
+      )}
+      {runningTool && (
+        <>
+          <span className={styles.statusSep}>·</span>
+          <span className={styles.statusRunning}>
+            running <em>{runningTool.name.replace(/^mcp__/, "")}</em>
+          </span>
+        </>
+      )}
+      {isStalled && (
+        <>
+          <span className={styles.statusSep}>·</span>
+          <span className={styles.statusStallText}>
+            no activity for {Math.floor(sinceLastEventMs / 1000)}s
+          </span>
+        </>
+      )}
+    </div>
+  );
+}
 
 /**
  * ResponsePane — the conversation surface for the current session.
@@ -36,6 +133,9 @@ export function ResponsePane() {
     artifacts,
     thoughts,
     history,
+    tools,
+    turnStartedAt,
+    lastEventAt,
   } = useChat();
   const paneRef = useRef<HTMLElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
@@ -114,7 +214,20 @@ export function ResponsePane() {
           </header>
           <p className={styles.prompt}>{lastPrompt}</p>
 
-          {showLiveThinking && (
+          {/* Live status footer — heartbeat for long-running turns.
+              Always visible while streaming; carries elapsed time,
+              tool/thought counts, currently-running tool, and a
+              stalled warning if no event has arrived in 30s. */}
+          {isStreaming && (
+            <StreamStatus
+              startedAt={turnStartedAt}
+              lastEventAt={lastEventAt}
+              tools={tools}
+              thoughtCount={thoughts.length}
+            />
+          )}
+
+          {showLiveThinking && !tools.length && (
             <div className={styles.thinking}>
               <span className={styles.thinkingDot} aria-hidden />
               <span className={styles.thinkingLabel}>astra is thinking</span>
