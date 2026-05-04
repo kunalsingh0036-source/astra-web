@@ -141,23 +141,55 @@ export function ResponsePane() {
   const bodyRef = useRef<HTMLDivElement>(null);
   const [reasoningOpen, setReasoningOpen] = useState(false);
 
-  // When a NEW turn starts (history.length changes OR a new prompt
-  // is set), scroll the latest turn's TOP into view — not the bottom.
-  // The user reads top-to-bottom at their own pace.
+  // Pane width mode:
+  //   - "compact" — 640px centered column. Editorial feel, used for
+  //     short exchanges (greeting, quick lookups, single Q&A).
+  //   - "wide"    — ~1200px / 92vw. Used once a conversation is
+  //     substantive — multiple turns, long analysis output. Without
+  //     this the user has to scroll constantly because only ~12 lines
+  //     fit in the narrow column.
   //
-  // We deliberately do NOT auto-follow text_delta streaming — chasing
-  // the bottom while the response grows means the user can never
-  // start reading from the top of a long response. They scroll down
-  // when they're ready.
-  const turnCount = history.length + (lastPrompt && isStreaming ? 1 : 0);
+  // Auto: wide once history has any turn OR the current response is
+  // long enough that compact would be cumbersome. User can override
+  // with the toggle button at the top of the pane — preference is
+  // sticky in localStorage so it survives reload.
+  const STORAGE_KEY_WIDTH = "astra:chat:width-pref";
+  const [widthPref, setWidthPref] = useState<"auto" | "compact" | "wide">(
+    () => {
+      if (typeof window === "undefined") return "auto";
+      const v = window.localStorage.getItem(STORAGE_KEY_WIDTH);
+      return v === "compact" || v === "wide" ? v : "auto";
+    },
+  );
+
+  // Auto-expand heuristic — used when widthPref is "auto"
+  const autoWide =
+    history.length > 0 || (response.length || 0) > 1200 || artifacts.length > 0;
+
+  const isWide =
+    widthPref === "wide" || (widthPref === "auto" && autoWide);
+
+  function toggleWidth() {
+    const next: "compact" | "wide" = isWide ? "compact" : "wide";
+    setWidthPref(next);
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(STORAGE_KEY_WIDTH, next);
+    }
+  }
+
+  // Scroll-to-bottom after each completed turn. Triggered only on
+  // history.length changes — i.e. a turn just landed in history —
+  // NOT on lastPrompt changes, NOT on isStreaming changes, NOT on
+  // escape/cancel. That means:
+  //   - completing a turn → see the end (Claude Code feel)
+  //   - escape or cancel  → keep your current scroll position
+  //                         (no jump-to-top whiplash)
+  //   - streaming updates → no auto-follow (user can read at their
+  //                         own pace; they scroll down when ready)
   useEffect(() => {
     if (!paneRef.current) return;
-    const articles = paneRef.current.querySelectorAll("article");
-    const latest = articles[articles.length - 1];
-    if (latest) {
-      latest.scrollIntoView({ block: "start", behavior: "smooth" });
-    }
-  }, [turnCount, lastPrompt]);
+    paneRef.current.scrollTop = paneRef.current.scrollHeight;
+  }, [history.length]);
 
   if (
     !lastPrompt &&
@@ -180,7 +212,23 @@ export function ResponsePane() {
   const showCurrentTurnInFlight = isStreaming || Boolean(error);
 
   return (
-    <section ref={paneRef} className={styles.pane} aria-live="polite">
+    <section
+      ref={paneRef}
+      className={`${styles.pane} ${isWide ? styles.paneWide : ""}`}
+      aria-live="polite"
+    >
+      {/* Width toggle — small chrome at the top-right so the user can
+          override the auto heuristic. State sticks in localStorage. */}
+      <button
+        type="button"
+        className={styles.widthToggle}
+        onClick={toggleWidth}
+        aria-label={isWide ? "compact view" : "wide view"}
+        title={isWide ? "compact view" : "wide view"}
+      >
+        {isWide ? "⇤⇥" : "⇥⇤"}
+      </button>
+
       {/* Conversation history — every completed turn in the session. */}
       {history.map((turn, i) => {
         const isLatest = i === history.length - 1;

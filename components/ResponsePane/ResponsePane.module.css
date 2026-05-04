@@ -16,6 +16,8 @@
   max-width: 640px;
   padding: var(--space-8) var(--space-8);
   z-index: 35;
+  transition: max-width var(--dur-medium) var(--ease-out-soft),
+    top var(--dur-medium) var(--ease-out-soft);
   /* Higher opacity so artifact content (drafts, tables) reads cleanly
      against the orbital canvas behind it. Was 0.78 — felt too
      see-through once text was in the pane. */
@@ -45,6 +47,55 @@
     opacity: 1;
     transform: translateX(-50%) translateY(0) scale(1);
   }
+}
+
+/* ── Wide mode — used once a conversation is substantive ──
+ *
+ * Default narrow (640px) keeps the editorial feel for short
+ * exchanges. Once history accumulates or the response is long,
+ * the pane expands to use most of the screen so the user isn't
+ * scrolling constantly through a 12-line column. The inner
+ * `.body` keeps a sensible reading width via max-width-on-prose
+ * so individual lines don't get unreadably long.
+ */
+.paneWide {
+  max-width: min(1240px, 92vw);
+  top: 8vh;
+}
+
+.paneWide .body,
+.paneWide .prompt {
+  max-width: 80ch;  /* prose stays readable; tables/artifacts go wide */
+}
+
+/* Width toggle — small chrome top-right of the pane. Clicking
+   flips between auto/wide and compact, persisted in localStorage. */
+.widthToggle {
+  position: absolute;
+  top: var(--space-3);
+  right: var(--space-3);
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--glow-whisper);
+  background: rgba(255, 255, 255, 0.02);
+  border: var(--border-hair);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  z-index: 1;
+  transition:
+    color var(--dur-small) var(--ease-out-soft),
+    border-color var(--dur-small) var(--ease-out-soft),
+    background var(--dur-small) var(--ease-out-soft);
+}
+.widthToggle:hover {
+  color: var(--glow-primary);
+  border-color: var(--glow-trace);
+  background: rgba(255, 255, 255, 0.06);
 }
 
 /* ── Per-turn container ─────────────────────────────────────
