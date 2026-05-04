@@ -104,6 +104,49 @@ const RECENT_TURNS_PATTERNS: Array<{ regex: RegExp; limit: number }> = [
   { regex: /^\s*(show|pull\s*up)\s+(my|our|the)?\s*(history|chat\s+history)\s*\.?\s*$/i, limit: 5 },
 ];
 
+/**
+ * Recognize "expand bridge to <path>" / "give astra access to <path>" /
+ * "add <path> to the bridge" — natural-language shortcuts that update
+ * the active bridge token's allowed_paths via /api/bridge/expand.
+ *
+ * The agent itself is taught (via system prompt) to suggest this exact
+ * phrasing when it needs a directory outside the current allowlist.
+ * Routing it through the chat layer (not through the agent's tool
+ * call path) avoids the recursive "agent needs permission to give
+ * itself permission" problem.
+ *
+ * Returns the path(s) to add, or null if the input is something else.
+ */
+const BRIDGE_EXPAND_PATTERNS: Array<RegExp> = [
+  // "expand bridge to /path/here"
+  /^\s*expand\s+(?:the\s+)?bridge\s+to\s+(.+?)\s*$/i,
+  // "add /path/here to the bridge"
+  /^\s*add\s+(.+?)\s+to\s+(?:the\s+)?bridge\s*$/i,
+  // "give astra access to /path/here"
+  /^\s*give\s+astra\s+access\s+to\s+(.+?)\s*$/i,
+  // "let astra read /path/here"
+  /^\s*let\s+astra\s+(?:read|access|see)\s+(.+?)\s*$/i,
+];
+
+function matchBridgeExpandCommand(value: string): string[] | null {
+  const v = value.trim();
+  if (!v) return null;
+  for (const regex of BRIDGE_EXPAND_PATTERNS) {
+    const m = v.match(regex);
+    if (m) {
+      // Split on commas / "and" so the user can add multiple paths
+      // in one go: "expand bridge to /a, /b, and /c"
+      const raw = m[1] || "";
+      const paths = raw
+        .split(/\s*,\s*|\s+and\s+/i)
+        .map((s) => s.trim().replace(/[`"']/g, ""))
+        .filter((s) => s.startsWith("/"));
+      if (paths.length > 0) return paths;
+    }
+  }
+  return null;
+}
+
 function matchRecentTurnsCommand(value: string): { limit: number } | null {
   const v = value.trim();
   if (!v) return null;
@@ -572,6 +615,45 @@ export function InputLine() {
     // This is the proof-of-pattern for a broader principle: not every
     // input needs the LLM. Deterministic queries get a deterministic
     // path; the agent handles open-ended reasoning.
+    // Bridge-expand shortcut: "expand bridge to /Users/.../X" hits
+    // /api/bridge/expand directly instead of routing through the agent.
+    // The agent is told (via system prompt) to suggest this exact
+    // phrasing when it needs an out-of-allowlist path.
+    const bridgePaths = matchBridgeExpandCommand(prompt);
+    if (bridgePaths) {
+      void fetch("/api/bridge/expand", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ paths: bridgePaths }),
+      })
+        .then(async (r) => {
+          const body = await r.json().catch(() => ({}));
+          if (!r.ok) {
+            injectTurn({
+              prompt,
+              response: `Couldn't expand bridge: ${body.error || `HTTP ${r.status}`}`,
+            });
+            return;
+          }
+          const added = (body.added as string[]) || [];
+          const all = (body.allowed_paths as string[]) || [];
+          const summary =
+            added.length === 0
+              ? `All requested paths were already in the allowlist. Current allowlist (${all.length}):\n${all.map((p) => `  - ${p}`).join("\n")}`
+              : `Added ${added.length} path(s) to bridge token #${body.token_id}:\n${added.map((p) => `  + ${p}`).join("\n")}\n\nCurrent allowlist (${all.length}):\n${all.map((p) => `  - ${p}`).join("\n")}`;
+          injectTurn({ prompt, response: summary });
+        })
+        .catch((e: unknown) => {
+          injectTurn({
+            prompt,
+            response: `Couldn't expand bridge: ${
+              e instanceof Error ? e.message : String(e)
+            }`,
+          });
+        });
+      return;
+    }
+
     const recentMatch = matchRecentTurnsCommand(prompt);
     if (recentMatch) {
       void fetch(`/api/turns/recent?limit=${recentMatch.limit}`, {
