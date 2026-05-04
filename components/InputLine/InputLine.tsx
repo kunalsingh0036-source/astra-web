@@ -80,6 +80,102 @@ function matchModeCommand(
 }
 
 /**
+ * Recognize "pull up our last conversation" / "what was I just asking" /
+ * "show recent turns" — deterministic queries with a known SQL shape
+ * that should NEVER touch the LLM.
+ *
+ * Returns the desired turn count, or null if this isn't a recent-turns
+ * query. The InputLine uses this to short-circuit to /api/turns/recent
+ * and inject the result as a synthetic turn — answer appears in <100ms
+ * instead of the 30+ seconds the agent path costs (and 10+ failure
+ * points it carries).
+ *
+ * Conservative on intent — only matches imperative + question patterns
+ * that clearly mean "show me past chat history." Anything ambiguous
+ * still falls through to the agent.
+ */
+const RECENT_TURNS_PATTERNS: Array<{ regex: RegExp; limit: number }> = [
+  // Singular "last conversation" → 1 turn
+  { regex: /^\s*(pull\s*up|show|open|fetch|bring\s*up|recall)\s+(our|my|the)\s+(last|previous|most\s+recent)\s+(conversation|chat|turn|message|exchange|prompt)\s*\.?\s*$/i, limit: 1 },
+  { regex: /^\s*(what\s+was|what\s+did)\s+(i|we)\s+(just\s+)?(ask|saying|talking\s+about|discuss(ing)?)\s*\??\s*$/i, limit: 1 },
+  { regex: /^\s*last\s+(conversation|chat|turn|message|exchange|prompt)\s*\.?\s*$/i, limit: 1 },
+  // Plural "recent N" → up to 5
+  { regex: /^\s*(show|pull\s*up|open)\s+(my|our|the)?\s*(recent|last)\s+(\d+\s+)?(conversations|chats|turns|messages|exchanges)\s*\.?\s*$/i, limit: 5 },
+  { regex: /^\s*(show|pull\s*up)\s+(my|our|the)?\s*(history|chat\s+history)\s*\.?\s*$/i, limit: 5 },
+];
+
+function matchRecentTurnsCommand(value: string): { limit: number } | null {
+  const v = value.trim();
+  if (!v) return null;
+  for (const { regex, limit } of RECENT_TURNS_PATTERNS) {
+    const m = v.match(regex);
+    if (m) {
+      // Try to parse "show recent 3 turns" → limit = 3
+      const numMatch = v.match(/\b(\d+)\b/);
+      if (numMatch) {
+        const n = parseInt(numMatch[1], 10);
+        if (n > 0 && n <= 20) return { limit: n };
+      }
+      return { limit };
+    }
+  }
+  return null;
+}
+
+interface RecentTurn {
+  id: number;
+  prompt: string;
+  response: string | null;
+  status: string;
+  duration_ms: number | null;
+  started_at: string;
+}
+
+function formatTurnsForChat(turns: RecentTurn[]): string {
+  if (turns.length === 0) {
+    return "No prior turns recorded yet — the turns table is fresh and only captures conversations from this point forward.";
+  }
+  if (turns.length === 1) {
+    const t = turns[0];
+    const ts = new Date(t.started_at).toLocaleString();
+    const dur =
+      t.duration_ms !== null
+        ? ` · ${(t.duration_ms / 1000).toFixed(1)}s`
+        : "";
+    const statusNote =
+      t.status === "complete"
+        ? ""
+        : ` · ${t.status}`;
+    return [
+      `Last turn (${ts}${dur}${statusNote}):`,
+      "",
+      `**you asked:**`,
+      t.prompt,
+      "",
+      `**i answered:**`,
+      t.response || "(no response — turn was interrupted or failed before completion)",
+    ].join("\n");
+  }
+  const lines: string[] = [`Last ${turns.length} turns, newest first:`, ""];
+  for (const t of turns) {
+    const ts = new Date(t.started_at).toLocaleString();
+    const dur =
+      t.duration_ms !== null
+        ? ` · ${(t.duration_ms / 1000).toFixed(1)}s`
+        : "";
+    const statusNote = t.status === "complete" ? "" : ` · ${t.status}`;
+    lines.push(`---`);
+    lines.push(`**${ts}${dur}${statusNote}**`);
+    lines.push(`**you:** ${t.prompt}`);
+    lines.push(
+      `**astra:** ${(t.response || "(interrupted)").slice(0, 600)}${(t.response || "").length > 600 ? "…" : ""}`,
+    );
+    lines.push("");
+  }
+  return lines.join("\n");
+}
+
+/**
  * The input line at the bottom of the canvas.
  *
  * Always present, always focused. Submitting opens a live stream to
@@ -173,6 +269,7 @@ export function InputLine() {
     ask,
     cancel,
     reset,
+    injectTurn,
     isStreaming,
     response,
     artifacts,
@@ -462,6 +559,39 @@ export function InputLine() {
   function askOrNavigate(prompt: string) {
     if (isHomeCommand(prompt)) {
       goHome();
+      return;
+    }
+    // Recent-turns shortcut: queries like "pull up our last conversation"
+    // are deterministic SQL — `SELECT * FROM turns ORDER BY started_at
+    // DESC LIMIT N`. Routing through the agent SDK costs ~30s of LLM
+    // round-tripping AND adds 10+ failure points (CLI subprocess, hook
+    // callbacks, embedding cold start, etc.) for what should be one
+    // database query. Hit /api/turns/recent directly and inject the
+    // result as a synthetic chat turn — answer appears in <100ms.
+    //
+    // This is the proof-of-pattern for a broader principle: not every
+    // input needs the LLM. Deterministic queries get a deterministic
+    // path; the agent handles open-ended reasoning.
+    const recentMatch = matchRecentTurnsCommand(prompt);
+    if (recentMatch) {
+      void fetch(`/api/turns/recent?limit=${recentMatch.limit}`, {
+        cache: "no-store",
+      })
+        .then((r) => r.json())
+        .then((body: { turns?: RecentTurn[]; error?: string }) => {
+          const text = body.error
+            ? `Couldn't read turns table: ${body.error}`
+            : formatTurnsForChat(body.turns || []);
+          injectTurn({ prompt, response: text });
+        })
+        .catch((e: unknown) => {
+          injectTurn({
+            prompt,
+            response: `Couldn't read turns table: ${
+              e instanceof Error ? e.message : String(e)
+            }`,
+          });
+        });
       return;
     }
     // Mode-switch shortcut: typing/speaking "switch to full auto" hits

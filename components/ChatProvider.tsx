@@ -86,6 +86,11 @@ interface ChatContextValue extends ChatState {
   ask: (prompt: string) => Promise<void>;
   cancel: () => void;
   reset: () => void;
+  /** Inject a completed turn directly into history WITHOUT routing
+   *  through the agent. Used by the InputLine's deterministic-query
+   *  intercepts (e.g. "pull up our last conversation" → fetch + render
+   *  in <10ms instead of a 30s LLM roundtrip). */
+  injectTurn: (turn: { prompt: string; response: string }) => void;
 }
 
 const ChatContext = createContext<ChatContextValue | null>(null);
@@ -336,9 +341,45 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     clearPersisted();
   }, []);
 
+  // Inject a completed turn into history without going through the agent.
+  // The InputLine uses this for deterministic intercepts (recent turns,
+  // mode commands surfaced as confirmations, etc.). We mark it durationMs=0
+  // so the turn header reads "answered in 0.0s" — the user can see this
+  // was a local lookup, not an LLM call.
+  const injectTurn = useCallback(
+    ({ prompt, response }: { prompt: string; response: string }) => {
+      setState((s) => ({
+        ...s,
+        lastPrompt: prompt,
+        // Reset transient turn state so any half-open in-flight ui
+        // doesn't bleed into the synthetic turn.
+        response: "",
+        thoughts: [],
+        tools: [],
+        artifacts: [],
+        error: null,
+        isStreaming: false,
+        history: [
+          ...s.history,
+          {
+            id: crypto.randomUUID(),
+            prompt,
+            response,
+            artifacts: [],
+            toolCount: 0,
+            durationMs: 0,
+            costUsd: 0,
+          },
+        ],
+        turnStartedAt: null,
+      }));
+    },
+    [],
+  );
+
   const value = useMemo<ChatContextValue>(
-    () => ({ ...state, ask, cancel, reset }),
-    [state, ask, cancel, reset],
+    () => ({ ...state, ask, cancel, reset, injectTurn }),
+    [state, ask, cancel, reset, injectTurn],
   );
 
   return <ChatContext.Provider value={value}>{children}</ChatContext.Provider>;
