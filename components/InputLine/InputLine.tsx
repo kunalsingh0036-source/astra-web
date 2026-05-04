@@ -105,6 +105,28 @@ const RECENT_TURNS_PATTERNS: Array<{ regex: RegExp; limit: number }> = [
 ];
 
 /**
+ * Recognize phrases that should navigate to the /sessions page —
+ * the user wants to browse + resume past chats. Distinct from
+ * `recall_recent_turns` (which renders the answer inline) because
+ * here the user explicitly wants the LIST UI, not a quick lookup.
+ */
+const SESSIONS_PAGE_PATTERNS: Array<RegExp> = [
+  /^\s*(show|open|see|view)\s+(?:my\s+|the\s+|all\s+)?(?:past\s+|previous\s+)?(?:chat\s+)?sessions\s*\.?\s*$/i,
+  /^\s*(show|open|see|view)\s+(?:my\s+|all\s+)?(past|previous|prior)\s+chats\s*\.?\s*$/i,
+  /^\s*(open|go\s+to)\s+(?:the\s+)?(sessions|chat\s+history|history\s+page)\s*\.?\s*$/i,
+  /^\s*(?:my\s+)?chat\s+history\s*\.?\s*$/i,
+  /^\s*(?:my\s+)?sessions\s*\.?\s*$/i,
+];
+
+function matchSessionsNavCommand(value: string): boolean {
+  const v = value.trim();
+  if (!v) return false;
+  // Skip questions ("what's a session?")
+  if (/^(what|how|why|when|does|can|is|are)\b/i.test(v)) return false;
+  return SESSIONS_PAGE_PATTERNS.some((r) => r.test(v));
+}
+
+/**
  * Recognize "expand bridge to <path>" / "give astra access to <path>" /
  * "add <path> to the bridge" — natural-language shortcuts that update
  * the active bridge token's allowed_paths via /api/bridge/expand.
@@ -602,6 +624,12 @@ export function InputLine() {
   function askOrNavigate(prompt: string) {
     if (isHomeCommand(prompt)) {
       goHome();
+      return;
+    }
+    // Sessions page: "show my chat history", "open past sessions",
+    // "my chats", etc. — pure navigation, no agent involved.
+    if (matchSessionsNavCommand(prompt)) {
+      router.push("/sessions");
       return;
     }
     // Recent-turns shortcut: queries like "pull up our last conversation"

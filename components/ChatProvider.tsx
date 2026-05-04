@@ -91,6 +91,12 @@ interface ChatContextValue extends ChatState {
    *  intercepts (e.g. "pull up our last conversation" → fetch + render
    *  in <10ms instead of a 30s LLM roundtrip). */
   injectTurn: (turn: { prompt: string; response: string }) => void;
+  /** Load a past session by id — fetches its turns from
+   *  /api/sessions/[id], pushes them into `history`, and sets
+   *  sessionRef.current so the next ask() flows under that session.
+   *  Lean runtime then loads the full message stack server-side from
+   *  turns.messages for proper context continuity. */
+  loadSession: (sessionId: string) => Promise<void>;
 }
 
 const ChatContext = createContext<ChatContextValue | null>(null);
@@ -377,9 +383,97 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     [],
   );
 
+  // Load a past session: fetch its turns + push into history + set
+  // sessionRef so the next ask() resumes under this session_id. The
+  // server side (lean runtime) loads the full message stack from
+  // turns.messages on its next turn, so proper multi-turn context
+  // works automatically — what we display here is purely for the
+  // browser UX (so you can see the conversation you're resuming).
+  const loadSession = useCallback(async (sessionId: string) => {
+    if (!sessionId) return;
+    abortRef.current?.abort();
+    try {
+      const res = await fetch(
+        `/api/sessions/${encodeURIComponent(sessionId)}`,
+        { cache: "no-store" },
+      );
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        setState((s) => ({
+          ...s,
+          error: `couldn't load session: ${body.error || `HTTP ${res.status}`}`,
+        }));
+        return;
+      }
+      const json = (await res.json()) as {
+        session_id: string;
+        turns: Array<{
+          id: number;
+          prompt: string;
+          response: string | null;
+          status: string;
+          tool_count: number;
+          duration_ms: number | null;
+          started_at: string;
+        }>;
+      };
+      // Project the server-side turn rows onto our Turn type. Empty
+      // responses (interrupted/failed) render as a stub so the user
+      // sees the prompt + can re-ask. Skip running rows entirely —
+      // they'd be confusing in the resumed history.
+      const projected: Turn[] = (json.turns || [])
+        .filter((t) => t.status !== "running")
+        .map((t) => ({
+          id: crypto.randomUUID(),
+          prompt: t.prompt,
+          response: t.response || "(no response — interrupted or failed)",
+          artifacts: [],
+          toolCount: t.tool_count || 0,
+          durationMs: t.duration_ms,
+          costUsd: null,
+          interrupted: t.status !== "complete",
+        }));
+      sessionRef.current = json.session_id;
+      setState((s) => ({
+        ...initial,
+        sessionId: json.session_id,
+        history: projected,
+        // Carry over the most recent turn's stats for the status bar
+        lastDurationMs:
+          projected.length > 0
+            ? projected[projected.length - 1].durationMs
+            : null,
+        lastCostUsd: null,
+      }));
+    } catch (e) {
+      setState((s) => ({
+        ...s,
+        error: `couldn't load session: ${
+          e instanceof Error ? e.message : String(e)
+        }`,
+      }));
+    }
+  }, []);
+
+  // URL param: /?session=<id> triggers a session resume on mount.
+  // Clears the param after loading so refreshes don't re-resume on
+  // top of any subsequent state.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const url = new URL(window.location.href);
+    const sid = url.searchParams.get("session");
+    if (!sid) return;
+    void loadSession(sid).then(() => {
+      // Strip the param without a navigation
+      url.searchParams.delete("session");
+      window.history.replaceState({}, "", url.toString());
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const value = useMemo<ChatContextValue>(
-    () => ({ ...state, ask, cancel, reset, injectTurn }),
-    [state, ask, cancel, reset, injectTurn],
+    () => ({ ...state, ask, cancel, reset, injectTurn, loadSession }),
+    [state, ask, cancel, reset, injectTurn, loadSession],
   );
 
   return <ChatContext.Provider value={value}>{children}</ChatContext.Provider>;
