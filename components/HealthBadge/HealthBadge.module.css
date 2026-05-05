@@ -1,0 +1,119 @@
+/* HealthBadge — minimal status dot top-right of the canvas. */
+
+.wrap {
+  position: fixed;
+  top: var(--space-5);
+  right: var(--space-5);
+  z-index: 50;
+  cursor: default;
+}
+
+.dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: var(--radius-full);
+}
+
+.dotOk {
+  background: var(--glow-primary);
+  box-shadow: 0 0 6px var(--halo-soft, rgba(255, 255, 255, 0.3));
+  animation: hb-slow 4s ease-in-out infinite;
+}
+.dotDegraded {
+  background: #f5b14a;
+  box-shadow: 0 0 8px rgba(245, 177, 74, 0.45);
+}
+.dotDown {
+  background: var(--alarm);
+  box-shadow: 0 0 10px var(--alarm-glow, rgba(249, 112, 102, 0.6));
+  animation: hb-fast 0.9s ease-in-out infinite;
+}
+.dotUnknown {
+  background: var(--glow-trace);
+  opacity: 0.5;
+}
+
+@keyframes hb-slow {
+  0%, 100% { opacity: 0.55; }
+  50%      { opacity: 1; }
+}
+@keyframes hb-fast {
+  0%, 100% { opacity: 0.5; transform: scale(1); }
+  50%      { opacity: 1; transform: scale(1.2); }
+}
+
+/* Hover popover — list every check + status. */
+.pop {
+  position: absolute;
+  top: calc(100% + var(--space-2));
+  right: 0;
+  min-width: 280px;
+  padding: var(--space-3) var(--space-4);
+  background: rgba(6, 10, 21, 0.96);
+  border: var(--border-hair);
+  border-radius: var(--radius-md);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--glow-body);
+  letter-spacing: var(--tracking-micro);
+  text-transform: lowercase;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+.popHead {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--glow-whisper);
+  margin-bottom: var(--space-2);
+  padding-bottom: var(--space-2);
+  border-bottom: var(--border-hair);
+}
+.popHead strong {
+  color: var(--glow-primary);
+  font-weight: 500;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 2px 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rowDot {
+  width: 5px;
+  height: 5px;
+  border-radius: var(--radius-full);
+  flex-shrink: 0;
+}
+
+.rowName {
+  color: var(--glow-elevated);
+  flex-shrink: 0;
+  min-width: 90px;
+}
+
+.rowDetail {
+  color: var(--glow-whisper);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.errLine {
+  margin-top: var(--space-2);
+  color: var(--alarm);
+  font-size: 10px;
+}
+
+.foot {
+  margin-top: var(--space-2);
+  padding-top: var(--space-2);
+  border-top: var(--border-hair);
+  color: var(--glow-whisper);
+  font-size: 10px;
+}

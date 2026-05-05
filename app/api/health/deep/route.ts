@@ -1,0 +1,321 @@
+import type { NextRequest } from "next/server";
+import { Pool } from "pg";
+
+/**
+ * GET /api/health/deep
+ *
+ * Comprehensive system health check. Probes every dependency Astra
+ * relies on, returns a structured report so we can see at a glance
+ * what's degraded BEFORE typing a prompt and waiting for a failure.
+ *
+ * Replaces the "discover problems by hitting them" model.
+ *
+ * Probed:
+ *   - Postgres reachable (round-trip query)
+ *   - Latest migration applied
+ *   - Anthropic API key set
+ *   - Stream service reachable + healthy
+ *   - Bridge daemon online (most-recent token's last_seen_at)
+ *   - Turns table populated
+ *
+ * Each probe has a timeout. If anything's stuck, the endpoint
+ * returns within ~5s with a clear "degraded" result rather than
+ * hanging the whole health check.
+ *
+ * Output shape:
+ *   {
+ *     status: "ok" | "degraded" | "down",
+ *     probedAt: ISO timestamp,
+ *     checks: { name, status, detail?, duration_ms }[],
+ *   }
+ *
+ * Public — no auth required so monitoring (UptimeRobot, GitHub
+ * Actions, etc.) can hit it without credentials. The detail
+ * payloads are intentionally non-sensitive.
+ */
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+export const maxDuration = 15;
+
+interface CheckResult {
+  name: string;
+  status: "ok" | "degraded" | "down";
+  detail?: string;
+  duration_ms: number;
+}
+
+let _pool: Pool | null = null;
+function pool(): Pool | null {
+  if (_pool) return _pool;
+  let url = (process.env.DATABASE_URL || "").trim();
+  if (!url) return null;
+  url = url.replace(/^postgresql\+asyncpg:\/\//, "postgresql://");
+  try {
+    _pool = new Pool({
+      connectionString: url,
+      ssl: url.includes("sslmode=")
+        ? undefined
+        : { rejectUnauthorized: false },
+      max: 2,
+      keepAlive: true,
+    });
+  } catch {
+    _pool = null;
+  }
+  return _pool;
+}
+
+// Each probe wraps work in a per-check timeout so a stuck dependency
+// can't hang the whole health endpoint.
+async function withTimeout<T>(
+  fn: () => Promise<T>,
+  ms: number,
+): Promise<T | null> {
+  return Promise.race([
+    fn(),
+    new Promise<null>((resolve) => setTimeout(() => resolve(null), ms)),
+  ]);
+}
+
+// ── Individual checks ─────────────────────────────────────
+
+async function checkPostgres(): Promise<CheckResult> {
+  const started = Date.now();
+  const p = pool();
+  if (!p) {
+    return {
+      name: "postgres",
+      status: "down",
+      detail: "DATABASE_URL not set",
+      duration_ms: 0,
+    };
+  }
+  const result = await withTimeout(async () => {
+    const r = await p.query("SELECT 1 AS ok");
+    return r.rows[0]?.ok === 1;
+  }, 3000);
+  const duration = Date.now() - started;
+  if (result === null) {
+    return {
+      name: "postgres",
+      status: "down",
+      detail: "timed out",
+      duration_ms: duration,
+    };
+  }
+  return {
+    name: "postgres",
+    status: result ? "ok" : "degraded",
+    duration_ms: duration,
+  };
+}
+
+async function checkMigrationHead(): Promise<CheckResult> {
+  const started = Date.now();
+  const p = pool();
+  if (!p) {
+    return {
+      name: "migration_head",
+      status: "down",
+      detail: "no DB",
+      duration_ms: 0,
+    };
+  }
+  const result = await withTimeout(async () => {
+    const r = await p.query<{ version_num: string }>(
+      "SELECT version_num FROM alembic_version",
+    );
+    return r.rows[0]?.version_num || null;
+  }, 3000);
+  const duration = Date.now() - started;
+  if (!result) {
+    return {
+      name: "migration_head",
+      status: "down",
+      detail: "alembic_version unreadable",
+      duration_ms: duration,
+    };
+  }
+  // The latest known head — bumped each migration. If prod is behind
+  // this, /sessions, the lean runtime, etc. will fail in subtle ways.
+  const EXPECTED_HEAD = "p4i70j6h1e3e";  // local-bridge migration
+  return {
+    name: "migration_head",
+    status: result === EXPECTED_HEAD ? "ok" : "degraded",
+    detail:
+      result === EXPECTED_HEAD
+        ? result
+        : `prod=${result}, expected=${EXPECTED_HEAD} — run alembic upgrade head`,
+    duration_ms: duration,
+  };
+}
+
+async function checkAnthropicKey(): Promise<CheckResult> {
+  const started = Date.now();
+  // We don't actually ping Anthropic here — that costs tokens + adds
+  // latency. We just verify the key is set on the server. The stream
+  // service does a real probe at boot via the prewarm hook.
+  const present = Boolean((process.env.ANTHROPIC_API_KEY || "").trim());
+  return {
+    name: "anthropic_key",
+    status: present ? "ok" : "down",
+    detail: present ? "env var set" : "ANTHROPIC_API_KEY missing",
+    duration_ms: Date.now() - started,
+  };
+}
+
+async function checkStreamService(): Promise<CheckResult> {
+  const started = Date.now();
+  const url = (process.env.ASTRA_STREAM_URL || "").trim();
+  if (!url) {
+    return {
+      name: "stream_service",
+      status: "down",
+      detail: "ASTRA_STREAM_URL not set",
+      duration_ms: 0,
+    };
+  }
+  const result = await withTimeout(async () => {
+    try {
+      const r = await fetch(`${url}/health`, {
+        signal: AbortSignal.timeout(2500),
+      });
+      if (!r.ok) return { ok: false, status: r.status };
+      const body = (await r.json()) as { status?: string };
+      return { ok: body.status === "healthy", status: r.status };
+    } catch (e) {
+      return { ok: false, error: String(e) };
+    }
+  }, 4000);
+  const duration = Date.now() - started;
+  if (!result) {
+    return {
+      name: "stream_service",
+      status: "down",
+      detail: "timed out",
+      duration_ms: duration,
+    };
+  }
+  if (!result.ok) {
+    return {
+      name: "stream_service",
+      status: "down",
+      detail: `unreachable: ${"status" in result ? `HTTP ${result.status}` : result.error}`,
+      duration_ms: duration,
+    };
+  }
+  return {
+    name: "stream_service",
+    status: "ok",
+    detail: `${url} healthy`,
+    duration_ms: duration,
+  };
+}
+
+async function checkBridgeDaemon(): Promise<CheckResult> {
+  const started = Date.now();
+  const p = pool();
+  if (!p) {
+    return {
+      name: "bridge_daemon",
+      status: "down",
+      detail: "no DB",
+      duration_ms: 0,
+    };
+  }
+  const result = await withTimeout(async () => {
+    const r = await p.query<{ id: number; label: string; last_seen_at: Date }>(
+      `SELECT id, label, last_seen_at
+       FROM bridge_tokens
+       WHERE revoked_at IS NULL
+         AND last_seen_at IS NOT NULL
+         AND last_seen_at > NOW() - INTERVAL '60 seconds'
+       ORDER BY last_seen_at DESC
+       LIMIT 1`,
+    );
+    return r.rows[0] || null;
+  }, 3000);
+  const duration = Date.now() - started;
+  if (!result) {
+    return {
+      name: "bridge_daemon",
+      status: "degraded",
+      detail: "no daemon polled in last 60s — local_* tools unavailable",
+      duration_ms: duration,
+    };
+  }
+  return {
+    name: "bridge_daemon",
+    status: "ok",
+    detail: `token #${result.id} (${result.label})`,
+    duration_ms: duration,
+  };
+}
+
+async function checkTurnsTable(): Promise<CheckResult> {
+  const started = Date.now();
+  const p = pool();
+  if (!p) {
+    return {
+      name: "turns_table",
+      status: "down",
+      detail: "no DB",
+      duration_ms: 0,
+    };
+  }
+  const result = await withTimeout(async () => {
+    const r = await p.query<{ count: number; oldest: Date | null }>(
+      `SELECT COUNT(*)::int AS count, MIN(started_at) AS oldest FROM turns`,
+    );
+    return r.rows[0] || null;
+  }, 3000);
+  const duration = Date.now() - started;
+  if (!result) {
+    return {
+      name: "turns_table",
+      status: "down",
+      detail: "table missing or query timed out",
+      duration_ms: duration,
+    };
+  }
+  return {
+    name: "turns_table",
+    status: "ok",
+    detail: `${result.count} turn(s) recorded`,
+    duration_ms: duration,
+  };
+}
+
+// ── Runner ────────────────────────────────────────────────
+
+export async function GET(_req: NextRequest) {
+  const checks = await Promise.all([
+    checkPostgres(),
+    checkMigrationHead(),
+    checkAnthropicKey(),
+    checkStreamService(),
+    checkBridgeDaemon(),
+    checkTurnsTable(),
+  ]);
+
+  const anyDown = checks.some((c) => c.status === "down");
+  const anyDegraded = checks.some((c) => c.status === "degraded");
+  const status: "ok" | "degraded" | "down" = anyDown
+    ? "down"
+    : anyDegraded
+      ? "degraded"
+      : "ok";
+
+  return Response.json(
+    {
+      status,
+      probedAt: new Date().toISOString(),
+      checks,
+    },
+    {
+      headers: {
+        "cache-control": "no-store, no-cache, must-revalidate",
+      },
+    },
+  );
+}

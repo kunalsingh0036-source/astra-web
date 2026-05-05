@@ -8,6 +8,7 @@ import { CommandPaletteProvider } from "@/components/CommandPalette/CommandPalet
 import { ModeProvider } from "@/components/ModeProvider";
 import { ChatProvider } from "@/components/ChatProvider";
 import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
+import { HealthBadge } from "@/components/HealthBadge/HealthBadge";
 
 /*
  * Typography loading
@@ -72,6 +73,10 @@ export default function RootLayout({
             <CommandPaletteProvider>
               {children}
               <Signature />
+              {/* HealthBadge polls /api/health/deep every 30s and
+                  surfaces "anything degraded" before kunal types —
+                  no more "discover problems by hitting them". */}
+              <HealthBadge />
             </CommandPaletteProvider>
           </ChatProvider>
         </ModeProvider>
