@@ -15,19 +15,17 @@ const nextConfig: NextConfig = {
     "127.0.0.1",
   ],
 
-  // Don't fail production builds on TypeScript errors that are
-  // tolerated in dev. Four pre-existing `unknown`-typed render values
-  // in app/agent/[name]/page.tsx + a Uint8Array vs BufferSource
-  // mismatch in lib/usePushSubscribe.ts compile and run cleanly but
-  // trip strict tsc. Address those properly when those screens are
-  // next touched; for now, ship the cloud build.
+  // Production builds fail on TypeScript errors — and that's the
+  // intent. The earlier `ignoreBuildErrors: true` override was load-
+  // bearing because of pre-existing TS errors in AgentSnapshot,
+  // usePushSubscribe, and the instanceof-Date cluster across pg
+  // routes. All fixed in Phase-2b cleanup; flag flipped back off so
+  // any new error is caught at deploy.
   typescript: {
-    ignoreBuildErrors: true,
+    ignoreBuildErrors: false,
   },
-  // Same logic for ESLint — don't let lint warnings block deploys.
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
+  // Next 16 dropped the `eslint` config option. Eslint runs via
+  // `next lint` separately now and doesn't gate `next build`.
 };
 
 export default nextConfig;

@@ -106,7 +106,15 @@ export function usePushSubscribe(): Hook {
 
       const sub = await reg.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+        // TS 5.7+ narrowed `BufferSource` to exclude SharedArrayBuffer-
+        // backed views, while `Uint8Array` defaults to
+        // `Uint8Array<ArrayBufferLike>` which includes the shared
+        // case. Our urlBase64ToUint8Array() allocates a fresh
+        // ArrayBuffer (`new Uint8Array(len)`) so this is safe at
+        // runtime. Cast to BufferSource at the boundary.
+        applicationServerKey: urlBase64ToUint8Array(
+          VAPID_PUBLIC_KEY,
+        ) as BufferSource,
       });
       const raw = sub.toJSON() as {
         endpoint: string;

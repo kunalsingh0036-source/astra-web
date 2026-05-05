@@ -136,7 +136,7 @@ function EmailBody({ data }: { data: AgentPayload }) {
           <h2 className={styles.heroSubject}>
             {String(hero.subject ?? "(no subject)")}
           </h2>
-          {hero.snippet && (
+          {Boolean(hero.snippet) && (
             <p className={styles.heroSnippet}>{String(hero.snippet)}</p>
           )}
           <div className={styles.heroActions}>
@@ -270,7 +270,7 @@ function FinanceBody({ data }: { data: AgentPayload }) {
                 </div>
                 <div className={styles.threadSubject}>
                   ₹{String(inv.amount ?? inv.total ?? "0")}
-                  {inv.invoice_number && ` · ${String(inv.invoice_number)}`}
+                  {Boolean(inv.invoice_number) && ` · ${String(inv.invoice_number)}`}
                 </div>
               </article>
             ))}
@@ -395,7 +395,7 @@ function WhatsAppBody({ data }: { data: AgentPayload }) {
                     {String(c.status ?? "active")}
                   </div>
                 </div>
-                {c.last_message && (
+                {Boolean(c.last_message) && (
                   <p className={styles.threadPreview}>
                     {String(c.last_message)}
                   </p>
