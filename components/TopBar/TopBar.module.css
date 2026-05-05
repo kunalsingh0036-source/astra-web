@@ -39,6 +39,26 @@
   color: var(--glow-primary);
 }
 
+/* ─── Nav links (monastic + ops) ───────────────────────── */
+
+/* Persistent canvas-mode nav. Subtle by design — the wordmark
+   stays the visual anchor; this just exposes a one-click path to
+   /sessions so chat history isn't only reachable via magic
+   phrases or direct URL. */
+.navLink {
+  font-family: var(--font-mono);
+  font-size: var(--text-caption);
+  letter-spacing: var(--tracking-micro);
+  color: var(--glow-muted);
+  text-decoration: none;
+  cursor: pointer;
+  transition: color var(--dur-small) var(--ease-out-soft);
+}
+
+.navLink:hover {
+  color: var(--glow-primary);
+}
+
 /* ─── Ops-mode detail row ──────────────────────────────── */
 
 .cost {

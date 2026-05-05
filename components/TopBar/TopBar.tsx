@@ -70,9 +70,24 @@ export function TopBar() {
       : "offline";
 
   if (!isOps) {
+    // Monastic/editorial — wordmark + a single subtle nav affordance
+    // for chat history. /sessions was unreachable from canvas chrome
+    // (only via deterministic InputLine intercepts), making it
+    // effectively invisible to anyone who didn't know the magic
+    // phrase. Low-contrast glow-whisper keeps it from competing
+    // with the wordmark while still being one click away.
     return (
       <header className={styles.topbar}>
-        <HomeLink className={styles.mark} />
+        <div className={styles.leftCol}>
+          <HomeLink className={styles.mark} />
+          <Link
+            href="/sessions"
+            className={styles.navLink}
+            title="all past chats"
+          >
+            sessions
+          </Link>
+        </div>
       </header>
     );
   }
@@ -82,6 +97,13 @@ export function TopBar() {
     <header className={styles.topbar}>
       <div className={styles.leftCol}>
         <HomeLink className={styles.mark} />
+        <Link
+          href="/sessions"
+          className={styles.navLink}
+          title="all past chats"
+        >
+          sessions
+        </Link>
         {cost && (
           <Link
             href="/cost"
