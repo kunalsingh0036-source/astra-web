@@ -110,59 +110,17 @@ async function checkPostgres(): Promise<CheckResult> {
   };
 }
 
-async function checkMigrationHead(): Promise<CheckResult> {
-  const started = Date.now();
-  const p = pool();
-  if (!p) {
-    return {
-      name: "migration_head",
-      status: "down",
-      detail: "no DB",
-      duration_ms: 0,
-    };
-  }
-  const result = await withTimeout(async () => {
-    const r = await p.query<{ version_num: string }>(
-      "SELECT version_num FROM alembic_version",
-    );
-    return r.rows[0]?.version_num || null;
-  }, 3000);
-  const duration = Date.now() - started;
-  if (!result) {
-    return {
-      name: "migration_head",
-      status: "down",
-      detail: "alembic_version unreadable",
-      duration_ms: duration,
-    };
-  }
-  // The latest known head — bumped each migration. If prod is behind
-  // this, /sessions, the lean runtime, etc. will fail in subtle ways.
-  const EXPECTED_HEAD = "p4i70j6h1e3e";  // local-bridge migration
-  return {
-    name: "migration_head",
-    status: result === EXPECTED_HEAD ? "ok" : "degraded",
-    detail:
-      result === EXPECTED_HEAD
-        ? result
-        : `prod=${result}, expected=${EXPECTED_HEAD} — run alembic upgrade head`,
-    duration_ms: duration,
-  };
-}
-
-async function checkAnthropicKey(): Promise<CheckResult> {
-  const started = Date.now();
-  // We don't actually ping Anthropic here — that costs tokens + adds
-  // latency. We just verify the key is set on the server. The stream
-  // service does a real probe at boot via the prewarm hook.
-  const present = Boolean((process.env.ANTHROPIC_API_KEY || "").trim());
-  return {
-    name: "anthropic_key",
-    status: present ? "ok" : "down",
-    detail: present ? "env var set" : "ANTHROPIC_API_KEY missing",
-    duration_ms: Date.now() - started,
-  };
-}
+// Migration head + Anthropic key checks have moved to the stream
+// service's /health/deep endpoint, where they belong:
+//   - The stream container has the migration files copied in, so
+//     it can compare DB-head vs disk-head (the truth). Vercel
+//     can't do that — no migration files in its build.
+//   - The Anthropic key lives in Railway's env, not Vercel's.
+//     Probing process.env on Vercel was checking the wrong layer.
+//
+// astra-web's /api/health/deep now proxies the stream service's
+// /health/deep and merges its checks into the response. See
+// checkStreamServiceDeep below.
 
 async function checkStreamService(): Promise<CheckResult> {
   const started = Date.now();
@@ -210,6 +168,66 @@ async function checkStreamService(): Promise<CheckResult> {
     detail: `${url} healthy`,
     duration_ms: duration,
   };
+}
+
+interface StreamDeepCheck {
+  name: string;
+  status: "ok" | "degraded" | "down";
+  detail?: string;
+}
+
+async function checkStreamDeep(): Promise<CheckResult[]> {
+  /**
+   * Pull the stream service's /health/deep response and unfold its
+   * inner checks into our own list. This is where:
+   *   - anthropic_key
+   *   - database_url
+   *   - migration_head (compared against on-disk migration files)
+   * actually live. Vercel can't probe these directly because the
+   * env vars + files are on Railway, not in Vercel's build.
+   */
+  const started = Date.now();
+  const url = (process.env.ASTRA_STREAM_URL || "").trim();
+  if (!url) {
+    return [
+      {
+        name: "stream_deep",
+        status: "down",
+        detail: "ASTRA_STREAM_URL not set",
+        duration_ms: 0,
+      },
+    ];
+  }
+  const result = await withTimeout(async () => {
+    try {
+      const r = await fetch(`${url}/health/deep`, {
+        signal: AbortSignal.timeout(4000),
+      });
+      if (!r.ok) return null;
+      return (await r.json()) as { checks?: StreamDeepCheck[] };
+    } catch {
+      return null;
+    }
+  }, 5000);
+  const duration = Date.now() - started;
+  if (!result || !Array.isArray(result.checks)) {
+    return [
+      {
+        name: "stream_deep",
+        status: "degraded",
+        detail: "stream /health/deep unreachable",
+        duration_ms: duration,
+      },
+    ];
+  }
+  // Unfold each inner check as a top-level entry. Prefix with
+  // "stream:" so it's clear they originated upstream.
+  return result.checks.map((c) => ({
+    name: `stream:${c.name}`,
+    status: c.status,
+    detail: c.detail,
+    duration_ms: duration,  // shared (single round-trip)
+  }));
 }
 
 async function checkBridgeDaemon(): Promise<CheckResult> {
@@ -289,14 +307,17 @@ async function checkTurnsTable(): Promise<CheckResult> {
 // ── Runner ────────────────────────────────────────────────
 
 export async function GET(_req: NextRequest) {
-  const checks = await Promise.all([
+  // Fire all probes in parallel. Stream-deep returns a LIST (one
+  // CheckResult per upstream check), the others return a single
+  // CheckResult — flatten on join.
+  const [pg, stream, bridge, turns, streamDeep] = await Promise.all([
     checkPostgres(),
-    checkMigrationHead(),
-    checkAnthropicKey(),
     checkStreamService(),
     checkBridgeDaemon(),
     checkTurnsTable(),
+    checkStreamDeep(),
   ]);
+  const checks: CheckResult[] = [pg, stream, ...streamDeep, bridge, turns];
 
   const anyDown = checks.some((c) => c.status === "down");
   const anyDegraded = checks.some((c) => c.status === "degraded");
