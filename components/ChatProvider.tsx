@@ -312,18 +312,22 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     if (!state.isStreaming) return;
     if (state.lastEventAt === null) return;
     const elapsed = Date.now() - state.lastEventAt;
-    const remaining = Math.max(0, 4 * 60_000 - elapsed);
+    // 330s — 30s above Vercel's 300s maxDuration so we never give up
+    // before the upstream stream is actually dead. See
+    // docs/timeout_hierarchy.md for the full layering.
+    const WATCHDOG_MS = 330_000;
+    const remaining = Math.max(0, WATCHDOG_MS - elapsed);
     const id = setTimeout(() => {
       // Re-check on fire — state may have changed
       const since = Date.now() - (state.lastEventAt ?? Date.now());
-      if (since < 4 * 60_000) return;
+      if (since < WATCHDOG_MS) return;
       // Abort any in-flight fetch (best effort)
       abortRef.current?.abort();
       setState((s) => ({
         ...s,
         isStreaming: false,
         error:
-          "no events from server for 4 minutes — assuming the stream is dead. retry.",
+          "no events from server for 5.5 minutes — assuming the stream is dead. retry.",
       }));
     }, remaining);
     return () => clearTimeout(id);
