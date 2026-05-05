@@ -10,7 +10,7 @@ import {
   useState,
 } from "react";
 import type { ChatEvent } from "@/lib/chatStream";
-import { startChatPoll, cancelTurn } from "@/lib/chatPoller";
+import { startChatPoll, cancelTurn, pollTurn } from "@/lib/chatPoller";
 import { parseArtifact, type Artifact } from "@/lib/artifacts";
 import { playChime } from "@/lib/chimes";
 import type { AgentName } from "@/lib/types";
@@ -47,10 +47,21 @@ export interface Turn {
   durationMs: number | null;
   costUsd: number | null;
   /** True when this turn was in flight at the time the page was
-   *  refreshed/closed — we recovered the partial response from
-   *  localStorage. The server may have completed the work but the
-   *  client never saw `done`, so this is the best snapshot we have. */
+   *  refreshed/closed AND we couldn't recover a clean completion
+   *  from the server (turn 404, status='interrupted'/'failed', or
+   *  resume polling itself errored). The browser is showing the
+   *  partial response we'd persisted locally — the server's truth
+   *  is unknown or worse than what we have. */
   interrupted?: boolean;
+  /** True when the turn was in flight at the time the page was
+   *  refreshed/closed BUT the server-side run continued and
+   *  finished cleanly (status='complete'). Polling on hydrate
+   *  recovered the full response; the user sees a fully-formed
+   *  answer with a "completed while you were away" badge so they
+   *  understand why this turn just appeared. Only set when
+   *  durationMs and the response come from the server's terminal
+   *  state, not from localStorage. */
+  completedWhileAway?: boolean;
 }
 
 export interface ChatState {
@@ -132,6 +143,13 @@ interface PersistedInFlight {
   toolCount: number;
   startedAt: number | null;
   lastEventAt: number | null;
+  /** Server-side turn id, captured via chatPoller's onTurnId.
+   *  This is the field that unlocks resume-on-hydrate: with the id
+   *  we can hit /api/turns/<id>/events and pull whatever the
+   *  server has, finished or otherwise. Backwards-compat: older
+   *  snapshots without turnId fall back to the old "show as
+   *  interrupted" path. */
+  turnId?: number | null;
 }
 
 interface PersistedState {
@@ -168,7 +186,7 @@ function loadPersisted(): PersistedState | null {
   }
 }
 
-function persistState(state: ChatState) {
+function persistState(state: ChatState, turnId: number | null) {
   if (typeof window === "undefined") return;
   try {
     const trimmedHistory = state.history.slice(-MAX_PERSISTED_TURNS);
@@ -178,13 +196,13 @@ function persistState(state: ChatState) {
       lastDurationMs: state.lastDurationMs,
       lastCostUsd: state.lastCostUsd,
       savedAt: Date.now(),
-      // Snapshot the in-flight turn — including the streaming response
-      // text and any artifacts that landed already. This is what makes
-      // a mid-research refresh recoverable: even if the server-side
-      // SSE connection dies (deploy, network blip, browser refresh),
-      // the partial answer Astra had typed so far survives in the
-      // browser and gets surfaced as an interrupted history entry on
-      // the next page load.
+      // Snapshot the in-flight turn including the partial response
+      // AND the server-side turn id. The id is what makes "completed
+      // while you were away" possible: on next mount we hit
+      // /api/turns/<id>/events, learn the turn finished hours ago,
+      // and surface the full server-side response. The local
+      // response/artifacts fields stay as a fallback for the rare
+      // case where the server lost the row.
       inFlight:
         state.isStreaming && state.lastPrompt
           ? {
@@ -194,6 +212,7 @@ function persistState(state: ChatState) {
               toolCount: state.tools.length,
               startedAt: state.turnStartedAt,
               lastEventAt: state.lastEventAt,
+              turnId,
             }
           : null,
     };
@@ -217,32 +236,71 @@ function clearPersisted() {
 
 export function ChatProvider({ children }: { children: React.ReactNode }) {
   // Hydrate from localStorage on first render so a page refresh
-  // doesn't kill conversation context. The session id is the most
-  // important field — restoring it lets the next /api/chat call
-  // resume the SDK's session state on the server.
+  // doesn't kill conversation context.
+  //
+  // Three persistence cases for an in-flight turn:
+  //   A. Saved with turnId — we'll resume against the server. Don't
+  //      add to history yet; the resume effect (below) decides
+  //      whether the turn finished cleanly (completedWhileAway) or
+  //      needs to be marked interrupted. Show the prompt as the
+  //      "current" turn with isStreaming=true so the user sees the
+  //      same thinking-indicator they had before the refresh.
+  //   B. Saved without turnId (legacy snapshot from pre-Phase-2b
+  //      builds) — fall back to the old "show as interrupted with
+  //      partial response" behavior since we can't resume.
+  //   C. No in-flight — normal restore.
   const [state, setState] = useState<ChatState>(() => {
     const saved = loadPersisted();
     if (!saved) return initial;
-    let history = saved.history || [];
-    // If a turn was in flight when we last persisted, surface its
-    // partial response as an interrupted history entry. The user sees
-    // what Astra was typing before the connection died — and any
-    // artifacts that had already landed — instead of a blank canvas.
-    if (saved.inFlight && saved.inFlight.prompt) {
-      history = [
-        ...history,
-        {
-          id: crypto.randomUUID(),
-          prompt: saved.inFlight.prompt,
-          response: saved.inFlight.response || "",
-          artifacts: saved.inFlight.artifacts || [],
-          toolCount: saved.inFlight.toolCount || 0,
-          durationMs: null,
-          costUsd: null,
-          interrupted: true,
-        },
-      ];
+    const history = saved.history || [];
+    const inFlight = saved.inFlight;
+    const canResume = !!(inFlight && inFlight.prompt && inFlight.turnId);
+    // Case B: legacy snapshot. Push the partial response as an
+    // interrupted entry the same way we used to — no resume path.
+    if (inFlight && inFlight.prompt && !inFlight.turnId) {
+      return {
+        ...initial,
+        sessionId: saved.sessionId,
+        history: [
+          ...history,
+          {
+            id: crypto.randomUUID(),
+            prompt: inFlight.prompt,
+            response: inFlight.response || "",
+            artifacts: inFlight.artifacts || [],
+            toolCount: inFlight.toolCount || 0,
+            durationMs: null,
+            costUsd: null,
+            interrupted: true,
+          },
+        ],
+        lastDurationMs: saved.lastDurationMs,
+        lastCostUsd: saved.lastCostUsd,
+      };
     }
+    // Case A: resumable. Surface the prompt as the active turn so
+    // the in-flight panel renders, but DON'T push to history yet —
+    // the resume effect will decide where it lands.
+    if (canResume) {
+      return {
+        ...initial,
+        sessionId: saved.sessionId,
+        history,
+        lastDurationMs: saved.lastDurationMs,
+        lastCostUsd: saved.lastCostUsd,
+        isStreaming: true,
+        lastPrompt: inFlight!.prompt,
+        // Seed accumulators with whatever we'd persisted. The resume
+        // poll replays from ord=0 so these get rebuilt anyway, but
+        // seeding them prevents a flash of empty state on slow
+        // mobile networks while the first poll is in flight.
+        response: inFlight!.response || "",
+        artifacts: inFlight!.artifacts || [],
+        turnStartedAt: inFlight!.startedAt,
+        lastEventAt: inFlight!.lastEventAt,
+      };
+    }
+    // Case C: nothing in flight.
     return {
       ...initial,
       sessionId: saved.sessionId,
@@ -262,6 +320,12 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   // tokens on a turn the user no longer wants. Cleared when the
   // turn reaches a terminal state.
   const turnIdRef = useRef<number | null>(null);
+  // Set on hydrate when there's a resumable in-flight turn. The
+  // resume effect picks this up, calls pollTurn, and folds the
+  // result into history. null means no resume needed.
+  const resumeTurnIdRef = useRef<number | null>(
+    typeof window !== "undefined" ? loadPersisted()?.inFlight?.turnId ?? null : null,
+  );
 
   // Recover session_id from localStorage on mount so the first
   // ask() after a refresh resumes the prior SDK session rather than
@@ -277,7 +341,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   // Persist on structural state changes — these don't fire often
   // (session start, turn complete, dismiss) and the snapshot is small.
   useEffect(() => {
-    persistState(state);
+    persistState(state, turnIdRef.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     state.sessionId,
@@ -299,7 +363,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   // better than losing the entire response.
   useEffect(() => {
     if (!state.isStreaming) return;
-    const id = setTimeout(() => persistState(state), 2000);
+    const id = setTimeout(() => persistState(state, turnIdRef.current), 2000);
     return () => clearTimeout(id);
   }, [state]);
 
@@ -557,6 +621,69 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Resume on hydrate — the killer feature of polling architecture.
+  //
+  // If the previous session left an in-flight turn with a known
+  // turn_id, we ask the server whether it finished. Three outcomes:
+  //
+  //   - Finished cleanly hours ago: the first poll comes back with
+  //     terminal=true and the full event log. applyEvent replays
+  //     into history with completedWhileAway=true. The user opens
+  //     the laptop, sees their answer ready. Total resume time:
+  //     <1s on a warm DB.
+  //
+  //   - Still running: rare but possible (long agent run, DB stall).
+  //     pollTurn keeps polling under the regular timeout — the user
+  //     sees the same "thinking" UI they had before refresh.
+  //
+  //   - Server lost the turn (404, DB wipe): error event fires,
+  //     the in-flight panel resolves to an error state. Better
+  //     than the old behavior (silent stuck-in-thinking forever).
+  //
+  // Cancel/dismiss works on a resumed turn too — turnIdRef is set
+  // to the same id chatPoller would have set, so the cancel button
+  // hits /api/turns/<id>/cancel correctly.
+  useEffect(() => {
+    const resumeTurnId = resumeTurnIdRef.current;
+    if (!resumeTurnId) return;
+    // Clear so a future state change can't accidentally re-trigger.
+    resumeTurnIdRef.current = null;
+
+    const saved = loadPersisted();
+    const promptText = saved?.inFlight?.prompt ?? "";
+    if (!promptText) return;
+
+    const controller = new AbortController();
+    abortRef.current = controller;
+    turnIdRef.current = resumeTurnId;
+
+    (async () => {
+      try {
+        const { turnId } = await pollTurn({
+          turnId: resumeTurnId,
+          signal: controller.signal,
+          // Replay from 0 — server is the source of truth. The
+          // accumulators we seeded in hydrate get rebuilt as
+          // events flow in. Any divergence between local
+          // localStorage state and the server's truth resolves
+          // toward the server's truth, which is what we want.
+          startOrd: 0,
+          onEvent: (event) =>
+            applyEvent(event, setState, sessionRef, promptText, true),
+        });
+        if (turnIdRef.current === turnId) {
+          turnIdRef.current = null;
+        }
+      } catch (e) {
+        if (controller.signal.aborted) return;
+        const message = e instanceof Error ? e.message : "resume failed";
+        setState((s) => ({ ...s, isStreaming: false, error: message }));
+      }
+    })();
+    // Mount-only: refs make this idempotent.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const value = useMemo<ChatContextValue>(
     () => ({ ...state, ask, cancel, reset, injectTurn, loadSession }),
     [state, ask, cancel, reset, injectTurn, loadSession],
@@ -576,6 +703,7 @@ function applyEvent(
   setState: React.Dispatch<React.SetStateAction<ChatState>>,
   sessionRef: React.MutableRefObject<string | null>,
   currentPrompt: string,
+  isResume: boolean = false,
 ) {
   // Bump lastEventAt on every event so the live status bar can detect
   // stalls (no event for N seconds while still streaming).
@@ -583,7 +711,7 @@ function applyEvent(
   setState((s) => {
     // The case-specific switch returns the new state; we mix in
     // lastEventAt at the end to avoid repeating it in every branch.
-    const updated = applyEventInner(event, s, sessionRef, currentPrompt);
+    const updated = applyEventInner(event, s, sessionRef, currentPrompt, isResume);
     return { ...updated, lastEventAt: eventArrivedAt };
   });
 }
@@ -593,6 +721,7 @@ function applyEventInner(
   s: ChatState,
   sessionRef: React.MutableRefObject<string | null>,
   currentPrompt: string,
+  isResume: boolean,
 ): ChatState {
   // The original applyEvent body, restructured to return the new state
   // instead of calling setState directly. The wrapper above adds
@@ -644,6 +773,12 @@ function applyEventInner(
         toolCount: s.tools.length,
         durationMs: event.duration_ms,
         costUsd: event.cost_usd ?? null,
+        // Resume = the user closed/refreshed during a turn, came
+        // back, polling found it already complete. The turn
+        // appearing in history is unexpected from the user's POV
+        // ("I didn't ask anything just now") — the badge tells them
+        // why.
+        completedWhileAway: isResume ? true : undefined,
       };
       playChime("task");
       return {

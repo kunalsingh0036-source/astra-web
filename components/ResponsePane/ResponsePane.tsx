@@ -251,6 +251,11 @@ export function ResponsePane() {
                   · interrupted — partial response recovered
                 </span>
               )}
+              {turn.completedWhileAway && (
+                <span className={styles.completedAwayChip}>
+                  · completed while you were away
+                </span>
+              )}
             </header>
             <p className={styles.prompt}>{turn.prompt}</p>
             {turn.response && (

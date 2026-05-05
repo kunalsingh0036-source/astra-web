@@ -78,6 +78,12 @@ interface PollResponse {
 
 const DEFAULT_POLL_MS = 500;
 const DEFAULT_MAX_DURATION_MS = 10 * 60 * 1000; // 10 min
+// Adaptive backoff cap. After ~6 consecutive empty polls (~10s of
+// idle), we throttle to one poll per 5s. Snaps back to base on the
+// next batch of events. Saves ~10× DB load when the agent is
+// thinking but not emitting (e.g. waiting on a slow tool).
+const DEFAULT_MAX_BACKOFF_MS = 5_000;
+const BACKOFF_GROWTH = 1.5;
 
 export async function startChatPoll({
   prompt,
@@ -143,11 +149,69 @@ export async function startChatPoll({
   }
 
   // ── Step 2: poll for events until terminal ──
-  let lastOrd = 0;
+  return pollTurn({
+    turnId: start.turn_id,
+    signal,
+    onEvent,
+    pollIntervalMs,
+    maxPollDurationMs,
+  });
+}
+
+export interface PollTurnOptions {
+  turnId: number;
+  signal?: AbortSignal;
+  onEvent: (event: ChatEvent) => void;
+  /** Base poll interval. Adaptive backoff grows it during idle
+   *  stretches; resets to this value on the next batch of events. */
+  pollIntervalMs?: number;
+  /** Cap for adaptive backoff. Defaults to 5s. */
+  maxBackoffMs?: number;
+  /** Hard ceiling on total poll duration. */
+  maxPollDurationMs?: number;
+  /**
+   * Resume from a specific ord. Defaults to 0 (replay from start).
+   * Replay is idempotent — text_delta concatenates, tool events
+   * accumulate, the consumer ends up in the same state. Pass a
+   * non-zero value if the caller has already applied earlier events
+   * and only wants new ones (e.g. live-running turn that lost the
+   * fetch midstream and is reconnecting).
+   */
+  startOrd?: number;
+}
+
+/**
+ * Poll an existing turn's events until it reaches a terminal state.
+ * Used in two paths:
+ *
+ *   1. Live turn — startChatPoll calls this after POST /api/chat
+ *      returns a turn_id. The consumer already has a fresh, empty
+ *      ChatState; events flow in real time.
+ *
+ *   2. Resume on hydrate — ChatProvider mounts with a saved
+ *      `inFlight.turnId` from a prior session. This function replays
+ *      events from ord=0 so the consumer rebuilds the response,
+ *      tools, artifacts deterministically. If the turn already
+ *      finished server-side (the common "completed while you were
+ *      away" case), the terminal event lands in the first poll and
+ *      the loop exits in <1s.
+ */
+export async function pollTurn({
+  turnId,
+  signal,
+  onEvent,
+  pollIntervalMs = DEFAULT_POLL_MS,
+  maxBackoffMs = DEFAULT_MAX_BACKOFF_MS,
+  maxPollDurationMs = DEFAULT_MAX_DURATION_MS,
+  startOrd = 0,
+}: PollTurnOptions): Promise<{ turnId: number }> {
+  let lastOrd = startOrd;
+  let emptyPollCount = 0;
+  let interval = pollIntervalMs;
   const startedAt = Date.now();
 
   while (true) {
-    if (signal?.aborted) return { turnId: start.turn_id };
+    if (signal?.aborted) return { turnId };
     if (Date.now() - startedAt > maxPollDurationMs) {
       onEvent({
         type: "error",
@@ -156,20 +220,17 @@ export async function startChatPoll({
         )}min — turn probably orphaned. retry.`,
       });
       onEvent({ type: "done", duration_ms: Date.now() - startedAt });
-      return { turnId: start.turn_id };
+      return { turnId };
     }
 
     let resp: Response;
     try {
-      resp = await fetch(
-        `/api/turns/${start.turn_id}/events?after=${lastOrd}`,
-        {
-          signal,
-          cache: "no-store",
-        },
-      );
+      resp = await fetch(`/api/turns/${turnId}/events?after=${lastOrd}`, {
+        signal,
+        cache: "no-store",
+      });
     } catch (e) {
-      if ((e as Error)?.name === "AbortError") return { turnId: start.turn_id };
+      if ((e as Error)?.name === "AbortError") return { turnId };
       // Network blip — wait + retry. Don't kill the loop on
       // transient failures.
       await sleep(pollIntervalMs * 2);
@@ -185,7 +246,7 @@ export async function startChatPoll({
           (body as { error?: string }).error || `events HTTP ${resp.status}`,
       });
       onEvent({ type: "done", duration_ms: Date.now() - startedAt });
-      return { turnId: start.turn_id };
+      return { turnId };
     }
 
     const body = (await resp.json()) as PollResponse;
@@ -194,6 +255,22 @@ export async function startChatPoll({
       lastOrd = Math.max(lastOrd, ev.ord);
       const translated = translateEvent(ev);
       if (translated) onEvent(translated);
+    }
+
+    // Adaptive backoff: snap interval to base on any new events,
+    // grow geometrically on consecutive empty polls. Capped so a
+    // long-running tool call (no events for 30s+) settles into a
+    // 5s cadence — still snappy enough that the user perceives
+    // continuity but ~10× cheaper than 500ms polling.
+    if (body.events.length > 0) {
+      emptyPollCount = 0;
+      interval = pollIntervalMs;
+    } else {
+      emptyPollCount += 1;
+      interval = Math.min(
+        maxBackoffMs,
+        Math.round(pollIntervalMs * Math.pow(BACKOFF_GROWTH, emptyPollCount)),
+      );
     }
 
     if (body.terminal) {
@@ -210,10 +287,10 @@ export async function startChatPoll({
           duration_ms: body.duration_ms ?? Date.now() - startedAt,
         });
       }
-      return { turnId: start.turn_id };
+      return { turnId };
     }
 
-    await sleep(pollIntervalMs);
+    await sleep(interval);
   }
 }
 

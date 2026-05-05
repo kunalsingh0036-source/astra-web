@@ -187,6 +187,20 @@
   letter-spacing: 0;
 }
 
+/* Same shape as .interruptedChip but in a calm tone, not alarm —
+   the turn FINISHED, the user just wasn't watching. The polling
+   architecture made this case possible (Phase 2b): server-side
+   asyncio task survives browser refresh, kept producing tokens
+   while the user was elsewhere; on next mount we replayed the
+   event log and recovered the full response. */
+.completedAwayChip {
+  font-style: italic;
+  font-family: var(--font-display);
+  font-size: 12px;
+  color: var(--glow-body);
+  letter-spacing: 0;
+}
+
 /* Calligraphic throughout the dialogue — the user's question and
    Astra's response both render in italic serif on the same line
    weight. Only chrome labels (meta, buttons, error banners) keep
