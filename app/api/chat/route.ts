@@ -15,6 +15,23 @@ import type { NextRequest } from "next/server";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
+// Vercel streaming-function duration cap. Without this, the route
+// inherits Vercel's default (60s on Hobby, ~60s baseline on Pro).
+// Long agent turns — draft_doc + render_doc_pdf is 60-90s; multi-
+// step research can run 3-4 minutes — get their connection killed
+// mid-stream when the cap fires. The browser then sees a clean
+// stream-close with no `done` event and surfaces "stream ended
+// without a terminal event" (the synthetic error in chatStream.ts).
+//
+// 300s = 5 min, the Pro-plan streaming ceiling. On Hobby the cap is
+// applied at the lower limit automatically — no harm in declaring
+// the higher number.
+//
+// True fix is polling-based: return a turn_id immediately, browser
+// polls /api/turns/<id> for progress + completion. Queued for a
+// follow-up commit.
+export const maxDuration = 300;
+
 export async function POST(req: NextRequest) {
   const streamUrl = process.env.ASTRA_STREAM_URL ?? "http://localhost:8700";
   const sharedSecret = process.env.ASTRA_SHARED_SECRET ?? "";
