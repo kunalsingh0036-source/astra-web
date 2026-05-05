@@ -295,6 +295,40 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     return () => clearTimeout(id);
   }, [state]);
 
+  // Watchdog — auto-clear a stuck "thinking" state.
+  //
+  // If isStreaming has been true with NO event arriving for >4 min,
+  // the server has almost certainly already finished/cancelled the
+  // turn but the SSE channel never delivered a terminal event (server
+  // crashed, network proxy dropped the long-poll, etc.). Without this,
+  // the browser sits at "astra is thinking" indefinitely — even after
+  // hard refresh, because localStorage keeps re-saving isStreaming=true.
+  //
+  // The chatStream layer now also synthesizes terminal events when the
+  // stream ends without one (lib/chatStream.ts), so this watchdog is
+  // a second layer of defense for cases where the stream stays open
+  // but stops delivering frames (mid-flight network blackhole).
+  useEffect(() => {
+    if (!state.isStreaming) return;
+    if (state.lastEventAt === null) return;
+    const elapsed = Date.now() - state.lastEventAt;
+    const remaining = Math.max(0, 4 * 60_000 - elapsed);
+    const id = setTimeout(() => {
+      // Re-check on fire — state may have changed
+      const since = Date.now() - (state.lastEventAt ?? Date.now());
+      if (since < 4 * 60_000) return;
+      // Abort any in-flight fetch (best effort)
+      abortRef.current?.abort();
+      setState((s) => ({
+        ...s,
+        isStreaming: false,
+        error:
+          "no events from server for 4 minutes — assuming the stream is dead. retry.",
+      }));
+    }, remaining);
+    return () => clearTimeout(id);
+  }, [state.isStreaming, state.lastEventAt]);
+
   const ask = useCallback(async (prompt: string) => {
     const trimmed = prompt.trim();
     if (!trimmed) return;

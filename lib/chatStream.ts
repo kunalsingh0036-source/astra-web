@@ -58,6 +58,12 @@ export async function startChatStream({
   const reader = res.body.getReader();
   const decoder = new TextDecoder("utf-8");
   let buffer = "";
+  // Track whether we saw a clean turn-completion event from the
+  // server. If the stream ends without one, we synthesize an error
+  // so ChatProvider knows the turn is over and can clear isStreaming.
+  // Without this, server-side cancellations (CancelledError → SSE
+  // closes silently) leave the browser stuck in "thinking" forever.
+  let sawTerminal = false;
 
   while (true) {
     const { done, value } = await reader.read();
@@ -71,9 +77,27 @@ export async function startChatStream({
       const frame = buffer.slice(0, sep);
       buffer = buffer.slice(sep + 2);
       const parsed = parseFrame(frame);
-      if (parsed) onEvent(parsed);
+      if (parsed) {
+        if (parsed.type === "done" || parsed.type === "error") {
+          sawTerminal = true;
+        }
+        onEvent(parsed);
+      }
       sep = buffer.indexOf("\n\n");
     }
+  }
+
+  // Stream ended. If the server never sent a terminal event (server
+  // crashed, container restarted, network proxy dropped the long-
+  // poll, runner CancelledError path), tell the consumer explicitly
+  // so it can clear isStreaming + show an actionable message.
+  if (!sawTerminal) {
+    onEvent({
+      type: "error",
+      message:
+        "stream ended without a terminal event — server likely cancelled or crashed mid-turn. retry.",
+    });
+    onEvent({ type: "done", duration_ms: 0 });
   }
 }
 
