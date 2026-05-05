@@ -1,0 +1,197 @@
+/* /turns/[id] — single-turn detail page. Mirrors /sessions chrome
+   so the navigation language is consistent. */
+
+.main {
+  max-width: 980px;
+  margin: 0 auto;
+  padding: var(--space-16) var(--space-8) var(--space-16);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-10);
+}
+
+.trail {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  font-family: var(--font-mono);
+  font-size: var(--text-label);
+  letter-spacing: var(--tracking-micro);
+  color: var(--glow-muted);
+}
+.trail a {
+  color: var(--glow-muted);
+  text-decoration: none;
+  transition: color var(--dur-small) var(--ease-out-soft);
+}
+.trail a:hover { color: var(--glow-primary); }
+.trailArrow { color: var(--glow-whisper); }
+.trailCurrent { color: var(--glow-body); }
+
+.errText {
+  color: var(--alarm);
+  font-family: var(--font-mono);
+  font-size: var(--text-label);
+}
+
+.empty {
+  color: var(--glow-whisper);
+  font-family: var(--font-mono);
+  font-size: var(--text-caption);
+}
+
+.head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.kicker {
+  font-family: var(--font-mono);
+  font-size: var(--text-label);
+  letter-spacing: var(--tracking-micro);
+  color: var(--glow-whisper);
+}
+
+.prompt {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 400;
+  font-size: clamp(36px, 5.5vw, 56px);
+  line-height: 1.05;
+  letter-spacing: -0.01em;
+  color: var(--glow-primary);
+  margin: 0;
+}
+
+.meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  font-family: var(--font-mono);
+  font-size: var(--text-label);
+  color: var(--glow-muted);
+}
+.metaDot { color: var(--glow-whisper); }
+
+.status {
+  font-family: var(--font-mono);
+  font-size: var(--text-label);
+  letter-spacing: var(--tracking-micro);
+}
+.statusOk { color: var(--glow-elevated); }
+.statusLive { color: var(--glow-primary); }
+.statusWarn { color: var(--alarm); }
+
+/* ─── Response block ────────────────────────────────── */
+
+.responseBlock {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  border-top: 1px solid var(--glow-trace);
+  padding-top: var(--space-6);
+}
+
+.responseLabel {
+  font-family: var(--font-mono);
+  font-size: var(--text-label);
+  letter-spacing: var(--tracking-micro);
+  color: var(--glow-whisper);
+  text-transform: lowercase;
+}
+
+.responseBody {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: 20px;
+  line-height: 1.5;
+  color: var(--glow-primary);
+  white-space: pre-wrap;
+}
+
+/* ─── Error block ───────────────────────────────────── */
+
+.errorBlock {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  border-left: 2px solid var(--alarm);
+  padding: var(--space-4) var(--space-5);
+  background: rgba(249, 112, 102, 0.06);
+}
+.errorLabel {
+  font-family: var(--font-mono);
+  font-size: var(--text-label);
+  letter-spacing: var(--tracking-micro);
+  color: var(--alarm);
+  text-transform: lowercase;
+}
+.errorBody {
+  font-family: var(--font-mono);
+  font-size: var(--text-caption);
+  color: var(--glow-body);
+  margin: 0;
+  word-break: break-word;
+}
+
+/* ─── Timeline ──────────────────────────────────────── */
+
+.timeline {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  border-top: 1px solid var(--glow-trace);
+  padding-top: var(--space-6);
+}
+.timelineLabel {
+  font-family: var(--font-mono);
+  font-size: var(--text-label);
+  letter-spacing: var(--tracking-micro);
+  color: var(--glow-whisper);
+  text-transform: lowercase;
+}
+.events {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.event {
+  display: grid;
+  grid-template-columns: 56px 110px 1fr;
+  gap: var(--space-3);
+  font-family: var(--font-mono);
+  font-size: var(--text-caption);
+  align-items: baseline;
+  padding: var(--space-2) 0;
+  border-bottom: 1px dashed var(--glow-void);
+}
+.evOrd { color: var(--glow-whisper); }
+.evName { color: var(--glow-elevated); }
+.evDetail {
+  color: var(--glow-body);
+  word-break: break-word;
+  white-space: pre-wrap;
+}
+
+/* ─── Footer ────────────────────────────────────────── */
+
+.footer {
+  margin-top: var(--space-6);
+  display: flex;
+  justify-content: flex-end;
+}
+.openSession {
+  font-family: var(--font-mono);
+  font-size: var(--text-caption);
+  color: var(--glow-elevated);
+  text-decoration: none;
+  letter-spacing: var(--tracking-micro);
+  transition: color var(--dur-small) var(--ease-out-soft);
+}
+.openSession:hover { color: var(--glow-primary); }
