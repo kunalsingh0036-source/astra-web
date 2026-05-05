@@ -9,7 +9,8 @@ import {
   useRef,
   useState,
 } from "react";
-import { startChatStream, type ChatEvent } from "@/lib/chatStream";
+import type { ChatEvent } from "@/lib/chatStream";
+import { startChatPoll, cancelTurn } from "@/lib/chatPoller";
 import { parseArtifact, type Artifact } from "@/lib/artifacts";
 import { playChime } from "@/lib/chimes";
 import type { AgentName } from "@/lib/types";
@@ -254,6 +255,13 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   // Track the latest session_id outside of React state so `ask` can
   // read it synchronously without waiting for a re-render.
   const sessionRef = useRef<string | null>(null);
+  // Server-side turn id of the currently in-flight turn. Captured
+  // via chatPoller's onTurnId callback as soon as POST /api/chat
+  // returns. Cancel() reads this synchronously to fire a server-
+  // side cancel (POST /api/turns/<id>/cancel) so we stop spending
+  // tokens on a turn the user no longer wants. Cleared when the
+  // turn reaches a terminal state.
+  const turnIdRef = useRef<number | null>(null);
 
   // Recover session_id from localStorage on mount so the first
   // ask() after a refresh resumes the prior SDK session rather than
@@ -297,24 +305,24 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
 
   // Watchdog — auto-clear a stuck "thinking" state.
   //
-  // If isStreaming has been true with NO event arriving for >4 min,
-  // the server has almost certainly already finished/cancelled the
-  // turn but the SSE channel never delivered a terminal event (server
-  // crashed, network proxy dropped the long-poll, etc.). Without this,
-  // the browser sits at "astra is thinking" indefinitely — even after
-  // hard refresh, because localStorage keeps re-saving isStreaming=true.
+  // With Phase 2b polling (lib/chatPoller.ts), the turn runs server-
+  // side regardless of whether the browser is currently polling, so
+  // a "no events for N seconds" condition means one of:
+  //   - the server-side asyncio.Task wedged without writing anything
+  //   - the turn_events read endpoint is broken / DB is down
+  //   - the runner finished but turns.status update never landed
+  // In all three cases, the durable poll path (chatPoller's
+  // maxPollDurationMs = 10min) eventually fires, but a tighter
+  // browser watchdog gives the user a faster "retry" affordance.
   //
-  // The chatStream layer now also synthesizes terminal events when the
-  // stream ends without one (lib/chatStream.ts), so this watchdog is
-  // a second layer of defense for cases where the stream stays open
-  // but stops delivering frames (mid-flight network blackhole).
+  // The agent's own hard cap is 240s (_TURN_HARD_TIMEOUT_SEC); we
+  // wait 90s past that — 330s — so we never declare a turn dead
+  // while the runner is still legitimately working. See
+  // docs/timeout_hierarchy.md for the full layering.
   useEffect(() => {
     if (!state.isStreaming) return;
     if (state.lastEventAt === null) return;
     const elapsed = Date.now() - state.lastEventAt;
-    // 330s — 30s above Vercel's 300s maxDuration so we never give up
-    // before the upstream stream is actually dead. See
-    // docs/timeout_hierarchy.md for the full layering.
     const WATCHDOG_MS = 330_000;
     const remaining = Math.max(0, WATCHDOG_MS - elapsed);
     const id = setTimeout(() => {
@@ -337,10 +345,14 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     const trimmed = prompt.trim();
     if (!trimmed) return;
 
-    // Tear down any in-flight stream
+    // Tear down any in-flight poll
     abortRef.current?.abort();
     const controller = new AbortController();
     abortRef.current = controller;
+    // Drop any stale turn id from a prior turn so a cancel() racing
+    // with the new ask() can't accidentally fire a cancel against
+    // the old turn's id.
+    turnIdRef.current = null;
 
     // Reset the *turn-local* fields but keep session + history.
     const now = Date.now();
@@ -358,25 +370,53 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     }));
 
     try {
-      await startChatStream({
+      const { turnId } = await startChatPoll({
         prompt: trimmed,
         sessionId: sessionRef.current,
         signal: controller.signal,
         onEvent: (event) => applyEvent(event, setState, sessionRef, trimmed),
+        onTurnId: (id) => {
+          // Captured the moment POST /api/chat returns, BEFORE we
+          // start polling — so the Cancel button is wired up even
+          // for a turn the user wants to kill in the first second.
+          turnIdRef.current = id;
+        },
       });
+      // Whatever happened — terminal, abort, timeout — the turn id
+      // is no longer "current". Clearing prevents a stray cancel()
+      // call from hitting an already-finished turn id.
+      if (turnIdRef.current === turnId) {
+        turnIdRef.current = null;
+      }
     } catch (e) {
       if (controller.signal.aborted) return;
-      const message = e instanceof Error ? e.message : "stream failed";
+      const message = e instanceof Error ? e.message : "poll failed";
       setState((s) => ({ ...s, isStreaming: false, error: message }));
     }
   }, []);
 
   const cancel = useCallback(() => {
+    // Fire-and-forget the server-side cancel so the agent stops
+    // burning tokens on work the user no longer wants. The local
+    // abort is what actually stops the UX (poll loop sees
+    // signal.aborted and returns immediately).
+    const inFlightTurnId = turnIdRef.current;
+    if (inFlightTurnId !== null) {
+      void cancelTurn(inFlightTurnId);
+      turnIdRef.current = null;
+    }
     abortRef.current?.abort();
     setState((s) => ({ ...s, isStreaming: false }));
   }, []);
 
   const reset = useCallback(() => {
+    // Same server-side cancellation as cancel() — a "new conversation"
+    // gesture should also stop the previous turn from burning tokens.
+    const inFlightTurnId = turnIdRef.current;
+    if (inFlightTurnId !== null) {
+      void cancelTurn(inFlightTurnId);
+      turnIdRef.current = null;
+    }
     abortRef.current?.abort();
     sessionRef.current = null;
     setState(initial);
@@ -429,6 +469,14 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   // browser UX (so you can see the conversation you're resuming).
   const loadSession = useCallback(async (sessionId: string) => {
     if (!sessionId) return;
+    // Switching sessions = abandon the in-flight turn. Stop the
+    // server-side task too, otherwise it keeps spending API tokens
+    // on a conversation the user has navigated away from.
+    const inFlightTurnId = turnIdRef.current;
+    if (inFlightTurnId !== null) {
+      void cancelTurn(inFlightTurnId);
+      turnIdRef.current = null;
+    }
     abortRef.current?.abort();
     try {
       const res = await fetch(

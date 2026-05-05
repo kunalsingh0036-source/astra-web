@@ -15,22 +15,22 @@ import type { NextRequest } from "next/server";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-// Vercel streaming-function duration cap. Without this, the route
-// inherits Vercel's default (60s on Hobby, ~60s baseline on Pro).
-// Long agent turns — draft_doc + render_doc_pdf is 60-90s; multi-
-// step research can run 3-4 minutes — get their connection killed
-// mid-stream when the cap fires. The browser then sees a clean
-// stream-close with no `done` event and surfaces "stream ended
-// without a terminal event" (the synthetic error in chatStream.ts).
+// PHASE 2B — this route returns a turn_id in <100ms.
 //
-// 300s = 5 min, the Pro-plan streaming ceiling. On Hobby the cap is
-// applied at the lower limit automatically — no harm in declaring
-// the higher number.
+// The browser polls /api/turns/<id>/events for progress +
+// completion. No SSE in the path; no Vercel/Cloudflare/proxy
+// duration cap mattering. The agent runs server-side regardless
+// of whether anyone's polling — durable in turns + turn_events.
 //
-// True fix is polling-based: return a turn_id immediately, browser
-// polls /api/turns/<id> for progress + completion. Queued for a
-// follow-up commit.
-export const maxDuration = 300;
+// maxDuration is intentionally low (10s). If it ever fires here,
+// the round-trip to /turns/start on the stream service has hung —
+// surface that as an error fast instead of letting Vercel kill it
+// at the 300s wall.
+//
+// USE_LEGACY_SSE=1 env var falls back to the previous SSE-proxy
+// path for rollback safety. Will be deleted after polling has run
+// a week without regressions.
+export const maxDuration = 10;
 
 export async function POST(req: NextRequest) {
   const streamUrl = process.env.ASTRA_STREAM_URL ?? "http://localhost:8700";
@@ -40,25 +40,22 @@ export async function POST(req: NextRequest) {
   try {
     body = (await req.json()) as typeof body;
   } catch {
-    return new Response(JSON.stringify({ error: "invalid json" }), {
-      status: 400,
-      headers: { "content-type": "application/json" },
-    });
+    return Response.json({ error: "invalid json" }, { status: 400 });
   }
 
-  // Normalize the session_id so upstream gets a clean string|null. This
-  // also stops accidental leakage of arbitrary fields from the browser.
   const prompt = typeof body.prompt === "string" ? body.prompt : "";
   const sessionId =
     typeof body.session_id === "string" && body.session_id.length > 0
       ? body.session_id
       : null;
+
+  if (!prompt.trim()) {
+    return Response.json({ error: "prompt is empty" }, { status: 400 });
+  }
+
   const upstreamBody: Record<string, unknown> = { prompt };
   if (sessionId) upstreamBody.session_id = sessionId;
 
-  // Forward the shared secret so astra-stream accepts the call. The
-  // browser never sees this secret — it lives server-side only and is
-  // added here per request.
   const upstreamHeaders: Record<string, string> = {
     "content-type": "application/json",
   };
@@ -66,13 +63,79 @@ export async function POST(req: NextRequest) {
     upstreamHeaders["x-astra-secret"] = sharedSecret;
   }
 
+  // Legacy SSE fallback path. Set USE_LEGACY_SSE=1 to revert to
+  // the streaming model in case polling has an unforeseen issue.
+  if (process.env.USE_LEGACY_SSE === "1") {
+    return await proxyLegacyStream(streamUrl, upstreamHeaders, upstreamBody);
+  }
+
+  // POLLING PATH — POST /turns/start on the stream service. Returns
+  // {turn_id, session_id, status}. Browser polls /api/turns/[id]/events
+  // for progress until terminal status.
+  let upstream: Response;
+  try {
+    upstream = await fetch(`${streamUrl}/turns/start`, {
+      method: "POST",
+      headers: upstreamHeaders,
+      body: JSON.stringify(upstreamBody),
+      cache: "no-store",
+      // Don't use Vercel's maxDuration as the only fence — be
+      // explicit about how long we'll wait for /turns/start to
+      // respond. It's supposed to return in <100ms.
+      signal: AbortSignal.timeout(8000),
+    });
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "upstream unreachable";
+    return Response.json(
+      { error: `stream service unreachable: ${message}` },
+      { status: 502 },
+    );
+  }
+
+  if (!upstream.ok) {
+    const errBody = await upstream.text().catch(() => "");
+    return Response.json(
+      {
+        error: `stream service ${upstream.status}: ${errBody.slice(0, 500)}`,
+      },
+      { status: 502 },
+    );
+  }
+
+  const result = (await upstream.json()) as {
+    turn_id?: number;
+    session_id?: string | null;
+    status?: string;
+  };
+  if (!result.turn_id) {
+    return Response.json(
+      { error: "stream service didn't return turn_id" },
+      { status: 502 },
+    );
+  }
+
+  return Response.json({
+    turn_id: result.turn_id,
+    session_id: result.session_id ?? null,
+    status: result.status ?? "running",
+  });
+}
+
+/**
+ * Legacy SSE-proxy path, kept for env-var fallback (USE_LEGACY_SSE=1).
+ * Will be deleted after polling has run a week without regressions.
+ */
+async function proxyLegacyStream(
+  streamUrl: string,
+  headers: Record<string, string>,
+  body: Record<string, unknown>,
+): Promise<Response> {
   let upstream: Response;
   try {
     upstream = await fetch(`${streamUrl}/stream`, {
       method: "POST",
-      headers: upstreamHeaders,
-      body: JSON.stringify(upstreamBody),
-      // Disable Next's default caching on RSC/fetch
+      headers,
+      body: JSON.stringify(body),
       cache: "no-store",
     });
   } catch (e) {
@@ -90,8 +153,6 @@ export async function POST(req: NextRequest) {
     return new Response("no stream body", { status: 502 });
   }
 
-  // Pipe the upstream stream through unchanged. Next.js/Node will
-  // flush each chunk as it arrives.
   return new Response(upstream.body, {
     status: upstream.status,
     headers: {
