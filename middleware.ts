@@ -17,6 +17,12 @@ import { auth } from "@/auth";
 const PUBLIC_PREFIXES = [
   "/signin",
   "/api/auth",
+  // System health probe — must be public so monitoring tools
+  // (UptimeRobot, GitHub Actions, scripts/e2e_smoke.py) can hit it
+  // without credentials. The endpoint returns no sensitive data —
+  // just check names + statuses + non-sensitive detail strings
+  // (e.g. "61 turn(s) recorded", "token #1 (kunal-mbp)").
+  "/api/health",
   // Next.js internals — fonts, images, hot reload
   "/_next",
   "/favicon.svg",
