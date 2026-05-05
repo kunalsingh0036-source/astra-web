@@ -1,5 +1,6 @@
 import type { NextRequest } from "next/server";
 import { astraPool } from "@/lib/db";
+import { toISO } from "@/lib/dbDate";
 
 /**
  * GET /api/notes
@@ -68,10 +69,7 @@ export async function GET(req: NextRequest) {
       stats: {
         total: Number(stats.rows[0]?.total ?? 0),
         total_chars: Number(stats.rows[0]?.total_chars ?? 0),
-        last_synced:
-          stats.rows[0]?.last_synced instanceof Date
-            ? (stats.rows[0].last_synced as Date).toISOString()
-            : stats.rows[0]?.last_synced ?? null,
+        last_synced: toISO(stats.rows[0]?.last_synced as Date | null),
       },
       by_folder: folders.rows.map((r) => ({
         folder: String(r.folder || "(none)"),
@@ -84,14 +82,8 @@ export async function GET(req: NextRequest) {
         char_count: Number(r.char_count ?? 0),
         tags: String(r.tags ?? ""),
         preview: String(r.preview ?? ""),
-        created_at:
-          r.created_at_native instanceof Date
-            ? (r.created_at_native as Date).toISOString()
-            : (r.created_at_native as string | null) ?? null,
-        modified_at:
-          r.modified_at_native instanceof Date
-            ? (r.modified_at_native as Date).toISOString()
-            : (r.modified_at_native as string | null) ?? null,
+        created_at: toISO(r.created_at_native as Date | null),
+        modified_at: toISO(r.modified_at_native as Date | null),
       })),
     });
   } catch (e) {

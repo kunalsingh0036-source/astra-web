@@ -1,5 +1,6 @@
 import type { NextRequest } from "next/server";
 import { astraPool } from "@/lib/db";
+import { toISO } from "@/lib/dbDate";
 
 /**
  * GET /api/notes/{id}
@@ -37,18 +38,9 @@ export async function GET(
       body_text: String(n.body_text ?? ""),
       char_count: Number(n.char_count ?? 0),
       tags: String(n.tags ?? ""),
-      created_at:
-        n.created_at_native instanceof Date
-          ? (n.created_at_native as Date).toISOString()
-          : (n.created_at_native as string | null) ?? null,
-      modified_at:
-        n.modified_at_native instanceof Date
-          ? (n.modified_at_native as Date).toISOString()
-          : (n.modified_at_native as string | null) ?? null,
-      last_synced:
-        n.last_synced_at instanceof Date
-          ? (n.last_synced_at as Date).toISOString()
-          : (n.last_synced_at as string | null) ?? null,
+      created_at: toISO(n.created_at_native as Date | null),
+      modified_at: toISO(n.modified_at_native as Date | null),
+      last_synced: toISO(n.last_synced_at as Date | null),
     });
   } catch (e) {
     return Response.json(

@@ -1,5 +1,6 @@
 import type { NextRequest } from "next/server";
 import { Pool } from "pg";
+import { toISO } from "@/lib/dbDate";
 
 /**
  * GET /api/sessions
@@ -21,8 +22,8 @@ export const runtime = "nodejs";
 
 interface SessionRow {
   session_id: string;
-  first_turn_at: string;
-  last_turn_at: string;
+  first_turn_at: Date;
+  last_turn_at: Date;
   turn_count: number;
   first_prompt: string;
   last_status: string;
@@ -108,14 +109,8 @@ export async function GET(req: NextRequest) {
     return Response.json({
       sessions: r.rows.map((row) => ({
         session_id: row.session_id,
-        first_turn_at:
-          row.first_turn_at instanceof Date
-            ? row.first_turn_at.toISOString()
-            : String(row.first_turn_at),
-        last_turn_at:
-          row.last_turn_at instanceof Date
-            ? row.last_turn_at.toISOString()
-            : String(row.last_turn_at),
+        first_turn_at: toISO(row.first_turn_at) ?? "",
+        last_turn_at: toISO(row.last_turn_at) ?? "",
         turn_count: Number(row.turn_count || 0),
         first_prompt: row.first_prompt || "(empty prompt)",
         last_status: row.last_status || "unknown",

@@ -1,6 +1,7 @@
 import type { NextRequest } from "next/server";
 import { Pool } from "pg";
 import type { AgentName } from "@/lib/types";
+import { toISO } from "@/lib/dbDate";
 
 /**
  * GET /api/agent/[name]/activity
@@ -48,6 +49,9 @@ interface TurnRow {
   tool_count: number;
   duration_ms: number | null;
   cost_usd: string | null;
+  // ISO 8601 strings — this interface is the wire format (response
+  // shape), not the pg row shape. The query rows themselves come
+  // back as Date objects; toISO() converts at the projection.
   started_at: string;
   ended_at: string | null;
 }
@@ -225,14 +229,8 @@ async function safeTurnQuery(
       tool_count: Number(row.tool_count || 0),
       duration_ms: row.duration_ms ? Number(row.duration_ms) : null,
       cost_usd: row.cost_usd ? String(row.cost_usd) : null,
-      started_at:
-        row.started_at instanceof Date
-          ? row.started_at.toISOString()
-          : String(row.started_at),
-      ended_at:
-        row.ended_at instanceof Date
-          ? row.ended_at.toISOString()
-          : row.ended_at,
+      started_at: toISO(row.started_at) ?? "",
+      ended_at: toISO(row.ended_at),
     }));
   } catch {
     return [];

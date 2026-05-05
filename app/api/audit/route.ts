@@ -1,5 +1,6 @@
 import type { NextRequest } from "next/server";
 import { astraPool } from "@/lib/db";
+import { toISO } from "@/lib/dbDate";
 
 /**
  * GET /api/audit
@@ -86,10 +87,7 @@ export async function GET(req: NextRequest) {
       })),
       items: rows.rows.map((r: Record<string, unknown>) => ({
         id: Number(r.id),
-        ts:
-          r.ts instanceof Date
-            ? (r.ts as Date).toISOString()
-            : String(r.ts ?? ""),
+        ts: toISO(r.ts as Date | null) ?? "",
         tool: String(r.tool_name ?? ""),
         tier: String(r.action_tier ?? ""),
         mode: String(r.autonomy_mode ?? ""),

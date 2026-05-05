@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { astraPool } from "@/lib/db";
+import { toISO } from "@/lib/dbDate";
 
 /**
  * GET /api/briefing
@@ -46,10 +47,7 @@ export async function GET(req: Request) {
     const items = rows.rows.map((r: Record<string, unknown>) => ({
       id: Number(r.id),
       content: String(r.content ?? ""),
-      created_at:
-        r.created_at instanceof Date
-          ? (r.created_at as Date).toISOString()
-          : String(r.created_at ?? ""),
+      created_at: toISO(r.created_at as Date | null) ?? "",
       importance: Number(r.importance ?? 0),
       tags: r.tags != null ? String(r.tags) : null,
     }));

@@ -1,5 +1,6 @@
 import type { NextRequest } from "next/server";
 import { Pool } from "pg";
+import { toISO } from "@/lib/dbDate";
 
 /**
  * GET /api/turns/[id]/events?after=<ord>
@@ -25,7 +26,7 @@ interface EventRow {
   ord: number;
   event_name: string;
   payload: Record<string, unknown>;
-  created_at: string;
+  created_at: Date;
 }
 
 let _pool: Pool | null = null;
@@ -108,10 +109,7 @@ export async function GET(
         ord: row.ord,
         event: row.event_name,
         payload: row.payload || {},
-        created_at:
-          row.created_at instanceof Date
-            ? row.created_at.toISOString()
-            : String(row.created_at),
+        created_at: toISO(row.created_at) ?? "",
       })),
     });
   } catch (e) {

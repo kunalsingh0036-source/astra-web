@@ -1,5 +1,6 @@
 import type { NextRequest } from "next/server";
 import { astraPool } from "@/lib/db";
+import { toISO } from "@/lib/dbDate";
 
 /**
  * /api/tasks
@@ -204,24 +205,37 @@ function clampPriority(v: unknown): number {
   return Math.max(0, Math.min(3, Math.trunc(n)));
 }
 
-function toTask(r: Record<string, unknown>) {
-  return {
-    id: Number(r.id),
-    title: String(r.title ?? ""),
-    note: String(r.note ?? ""),
-    status: String(r.status ?? "open"),
-    priority: Number(r.priority ?? 1),
-    tags: String(r.tags ?? ""),
-    source: String(r.source ?? "web"),
-    created_at: dateStr(r.created_at),
-    updated_at: dateStr(r.updated_at),
-    completed_at: dateStr(r.completed_at),
-    due_at: dateStr(r.due_at),
-  };
+interface TaskRow {
+  id: number;
+  title: string | null;
+  note: string | null;
+  status: string | null;
+  priority: number | null;
+  tags: string | null;
+  source: string | null;
+  created_at: Date | null;
+  updated_at: Date | null;
+  completed_at: Date | null;
+  due_at: Date | null;
 }
 
-function dateStr(v: unknown): string | null {
-  if (!v) return null;
-  if (v instanceof Date) return v.toISOString();
-  return String(v);
+function toTask(r: Record<string, unknown>) {
+  // Cast at the boundary — the pool.query() above is untyped
+  // (Record<string, unknown> from the driver default). Once cast,
+  // the timestamp helpers work with the proper Date | null type
+  // and we don't need a runtime guard.
+  const row = r as unknown as TaskRow;
+  return {
+    id: Number(row.id),
+    title: String(row.title ?? ""),
+    note: String(row.note ?? ""),
+    status: String(row.status ?? "open"),
+    priority: Number(row.priority ?? 1),
+    tags: String(row.tags ?? ""),
+    source: String(row.source ?? "web"),
+    created_at: toISO(row.created_at),
+    updated_at: toISO(row.updated_at),
+    completed_at: toISO(row.completed_at),
+    due_at: toISO(row.due_at),
+  };
 }

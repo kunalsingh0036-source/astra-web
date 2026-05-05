@@ -1,5 +1,6 @@
 import type { NextRequest } from "next/server";
 import { Pool } from "pg";
+import { toISO } from "@/lib/dbDate";
 
 /**
  * GET /api/turns/recent?limit=N
@@ -32,8 +33,8 @@ interface TurnRow {
   tool_count: number;
   duration_ms: number | null;
   cost_usd: string | null;
-  started_at: string;
-  ended_at: string | null;
+  started_at: Date;
+  ended_at: Date | null;
 }
 
 let _pool: Pool | null = null;
@@ -88,14 +89,8 @@ export async function GET(req: NextRequest) {
       tool_count: Number(row.tool_count || 0),
       duration_ms: row.duration_ms ? Number(row.duration_ms) : null,
       cost_usd: row.cost_usd,
-      started_at:
-        row.started_at instanceof Date
-          ? row.started_at.toISOString()
-          : String(row.started_at),
-      ended_at:
-        row.ended_at instanceof Date
-          ? row.ended_at.toISOString()
-          : row.ended_at,
+      started_at: toISO(row.started_at) ?? "",
+      ended_at: toISO(row.ended_at),
     }));
     return Response.json({ turns: rows });
   } catch (e) {

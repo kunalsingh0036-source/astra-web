@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { astraPool } from "@/lib/db";
+import { toISO } from "@/lib/dbDate";
 
 /**
  * GET /api/memory
@@ -77,9 +78,7 @@ export async function GET(req: NextRequest) {
         tags: r.tags ? String(r.tags) : null,
         importance: Number(r.importance ?? 0),
         access_count: Number(r.access_count ?? 0),
-        created_at: r.created_at instanceof Date
-          ? r.created_at.toISOString()
-          : String(r.created_at ?? ""),
+        created_at: toISO(r.created_at as Date | null) ?? "",
       })),
     });
   } catch (e) {
