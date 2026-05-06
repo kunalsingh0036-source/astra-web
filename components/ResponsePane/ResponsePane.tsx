@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import styles from "./ResponsePane.module.css";
 import { useChat, type ToolActivity } from "@/components/ChatProvider";
 import { ArtifactView } from "@/components/Artifacts/Artifact";
-import { renderInline } from "./renderLite";
+import { MarkdownView } from "./MarkdownView";
 
 
 /**
@@ -259,7 +259,9 @@ export function ResponsePane() {
             </header>
             <p className={styles.prompt}>{turn.prompt}</p>
             {turn.response && (
-              <div className={styles.body}>{renderInline(turn.response)}</div>
+              <div className={styles.body}>
+                <MarkdownView text={turn.response} />
+              </div>
             )}
             {turn.artifacts.map((a, j) => (
               <ArtifactView key={`hist-${turn.id}-${j}`} artifact={a} />
@@ -340,7 +342,7 @@ export function ResponsePane() {
 
           {response && (
             <div ref={bodyRef} className={styles.body}>
-              {renderInline(response)}
+              <MarkdownView text={response} />
             </div>
           )}
 

@@ -480,8 +480,18 @@
    italic-serif body. Lists + tables switch font to interface sans so
    they're readable in tight rows. */
 .body :global(.resPara) {
-  margin: 0;
+  /* Block-level paragraph rhythm. The previous renderer never
+     produced <p> elements (just inline span+br), so the existing
+     `margin: 0` was correct then. With MarkdownView shipping real
+     <p> blocks, paragraphs need a bottom margin or they stack
+     uncomfortably tight. var(--space-3) = 12px gives one ~half-
+     line gap on top of the 1.55 line-height — readable without
+     reverting to the old cavernous spacing. */
+  margin: 0 0 var(--space-3);
   white-space: pre-wrap;
+}
+.body :global(.resPara):last-child {
+  margin-bottom: 0;
 }
 .body :global(.resHeading1) {
   font-family: var(--font-interface);
@@ -564,6 +574,81 @@
 }
 .body :global(.resTable) tr:last-child td {
   border-bottom: none;
+}
+
+/* ── Block code ─────────────────────────────────────────────
+   Code fences (``` ... ```) become <pre><code>. The inner code is
+   styled by `.body code` above (mono, subtle bg). The wrapping
+   <pre> needs its own block-level treatment: scroll on overflow,
+   modest padding, retains line breaks. */
+.body :global(.resPre) {
+  font-family: var(--font-mono);
+  font-style: normal;
+  font-size: 13px;
+  line-height: 1.5;
+  margin: var(--space-3) 0;
+  padding: var(--space-3) var(--space-4);
+  background: rgba(255, 255, 255, 0.04);
+  border: var(--border-hair);
+  border-radius: var(--radius-sm);
+  color: var(--glow-elevated);
+  overflow-x: auto;
+  white-space: pre;
+  /* Reset the inline code styling so the <code> inside <pre>
+     doesn't get its own mini-pill bg. */
+}
+.body :global(.resPre) code {
+  background: transparent;
+  padding: 0;
+  border-radius: 0;
+  color: inherit;
+  font-size: inherit;
+}
+
+/* ── Blockquote ──────────────────────────────────────────── */
+.body :global(.resBlockquote) {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: 18px;
+  line-height: 1.55;
+  margin: var(--space-3) 0;
+  padding: var(--space-2) var(--space-4);
+  border-left: 2px solid var(--glow-trace);
+  color: var(--glow-elevated);
+}
+.body :global(.resBlockquote) :global(.resPara) {
+  margin: var(--space-1) 0;
+}
+
+/* ── Horizontal rule ─────────────────────────────────────── */
+.body :global(.resHr) {
+  border: 0;
+  border-top: var(--border-hair);
+  margin: var(--space-4) 0;
+}
+
+/* ── Ordered lists ───────────────────────────────────────── */
+.body :global(.resListOrdered) {
+  list-style: decimal inside;
+  /* Override the resList "—" pseudo-bullet for ordered lists —
+     numbers replace dashes. Default margin/font stays inherited
+     from .resList. */
+}
+.body :global(.resListOrdered) li {
+  padding-left: 0;
+}
+.body :global(.resListOrdered) li::before {
+  content: "";
+}
+
+/* ── Embedded images (markdown ![alt](url)) ──────────────── */
+.body :global(.resImg) {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: var(--space-3) 0;
+  border: var(--border-hair);
+  border-radius: var(--radius-sm);
 }
 
 @media (max-width: 640px) {

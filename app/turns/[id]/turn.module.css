@@ -107,9 +107,178 @@
   font-family: var(--font-display);
   font-style: italic;
   font-size: 20px;
-  line-height: 1.5;
+  line-height: 1.55;
   color: var(--glow-primary);
+}
+
+/* ── Markdown rendering inside response body ─────────────────
+   Mirror the ResponsePane.module.css rules so MarkdownView
+   produces the same visual rhythm here as it does in the chat.
+   The class names are global (emitted by react-markdown via
+   our component overrides). */
+
+.responseBody :global(.resPara) {
+  margin: 0 0 var(--space-3);
   white-space: pre-wrap;
+}
+.responseBody :global(.resPara):last-child {
+  margin-bottom: 0;
+}
+.responseBody :global(.resHeading1) {
+  font-family: var(--font-interface);
+  font-style: normal;
+  font-size: 22px;
+  font-weight: 500;
+  color: var(--glow-primary);
+  margin: var(--space-4) 0 var(--space-2);
+}
+.responseBody :global(.resHeading2) {
+  font-family: var(--font-interface);
+  font-style: normal;
+  font-size: 18px;
+  font-weight: 500;
+  color: var(--glow-elevated);
+  margin: var(--space-3) 0 var(--space-2);
+}
+.responseBody :global(.resHeading3) {
+  font-family: var(--font-mono);
+  font-style: normal;
+  font-size: var(--text-label);
+  letter-spacing: var(--tracking-micro);
+  color: var(--glow-whisper);
+  text-transform: lowercase;
+  margin: var(--space-3) 0 var(--space-1);
+}
+.responseBody :global(.resList) {
+  list-style: none;
+  padding: 0;
+  margin: var(--space-2) 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  font-family: var(--font-interface);
+  font-style: normal;
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--glow-body);
+}
+.responseBody :global(.resList) li {
+  position: relative;
+  padding-left: var(--space-4);
+}
+.responseBody :global(.resList) li::before {
+  content: "—";
+  position: absolute;
+  left: 0;
+  color: var(--glow-whisper);
+}
+.responseBody :global(.resListOrdered) {
+  list-style: decimal inside;
+}
+.responseBody :global(.resListOrdered) li {
+  padding-left: 0;
+}
+.responseBody :global(.resListOrdered) li::before {
+  content: "";
+}
+.responseBody :global(.resPre) {
+  font-family: var(--font-mono);
+  font-style: normal;
+  font-size: 13px;
+  line-height: 1.5;
+  margin: var(--space-3) 0;
+  padding: var(--space-3) var(--space-4);
+  background: rgba(255, 255, 255, 0.04);
+  border: var(--border-hair);
+  border-radius: var(--radius-sm);
+  color: var(--glow-elevated);
+  overflow-x: auto;
+  white-space: pre;
+}
+.responseBody :global(.resPre) code {
+  background: transparent;
+  padding: 0;
+  border-radius: 0;
+  color: inherit;
+  font-size: inherit;
+}
+.responseBody code {
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--glow-primary);
+}
+.responseBody strong {
+  color: var(--glow-primary);
+  font-weight: 500;
+}
+.responseBody em {
+  font-style: italic;
+  color: var(--glow-elevated);
+}
+.responseBody a {
+  color: var(--glow-primary);
+  text-decoration: underline;
+  text-decoration-color: var(--glow-muted);
+  text-underline-offset: 3px;
+}
+.responseBody a:hover {
+  text-decoration-color: var(--glow-primary);
+}
+.responseBody :global(.resBlockquote) {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: 18px;
+  line-height: 1.55;
+  margin: var(--space-3) 0;
+  padding: var(--space-2) var(--space-4);
+  border-left: 2px solid var(--glow-trace);
+  color: var(--glow-elevated);
+}
+.responseBody :global(.resHr) {
+  border: 0;
+  border-top: var(--border-hair);
+  margin: var(--space-4) 0;
+}
+.responseBody :global(.resTableWrap) {
+  overflow-x: auto;
+  margin: var(--space-2) 0;
+  border: var(--border-hair);
+  border-radius: var(--radius-sm);
+}
+.responseBody :global(.resTable) {
+  width: 100%;
+  font-family: var(--font-mono);
+  font-style: normal;
+  font-size: 12px;
+  line-height: 1.4;
+  border-collapse: collapse;
+  color: var(--glow-body);
+}
+.responseBody :global(.resTable) th,
+.responseBody :global(.resTable) td {
+  padding: var(--space-2) var(--space-3);
+  text-align: left;
+  border-bottom: 1px solid var(--glow-trace);
+  vertical-align: top;
+}
+.responseBody :global(.resTable) th {
+  font-weight: 500;
+  color: var(--glow-whisper);
+  letter-spacing: var(--tracking-micro);
+  text-transform: lowercase;
+  font-size: 11px;
+  background: rgba(255, 255, 255, 0.02);
+}
+.responseBody :global(.resImg) {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: var(--space-3) 0;
+  border: var(--border-hair);
+  border-radius: var(--radius-sm);
 }
 
 /* ─── Error block ───────────────────────────────────── */

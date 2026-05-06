@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { use } from "react";
 import styles from "./turn.module.css";
+import { MarkdownView } from "@/components/ResponsePane/MarkdownView";
 
 /**
  * /turns/[id] — single-turn deep link.
@@ -225,7 +226,9 @@ export default function TurnDetailPage({
       <section className={styles.responseBlock}>
         <div className={styles.responseLabel}>response</div>
         {turn.response ? (
-          <div className={styles.responseBody}>{turn.response}</div>
+          <div className={styles.responseBody}>
+            <MarkdownView text={turn.response} />
+          </div>
         ) : (
           <p className={styles.empty}>(no response — turn ended without text)</p>
         )}
