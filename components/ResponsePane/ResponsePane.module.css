@@ -218,13 +218,24 @@
   font-family: var(--font-display);
   font-style: italic;
   font-size: 20px;
-  line-height: 1.5;
+  /* 1.55 — comfortable for italic serif at 20px without feeling
+     cavernous. Higher than 1.5 (default sans-serif) because italic
+     serif descenders + ascenders read tighter; lower than 1.7 (which
+     was the effective spacing before this fix because of the flex
+     gap below). Anything denser than this and the italic strokes
+     start visually colliding. */
+  line-height: 1.55;
   color: var(--glow-primary);
-  /* Scrolling lives on .pane now so artifacts and text scroll together. */
+  /* Block-level prose flow: <span>line</span><br/> per line, with
+     blank lines (consecutive <br/>) creating natural paragraph
+     breaks at exactly one line-height. The previous flex+gap layout
+     turned every span into a flex item with 12px gap on top of the
+     line-height — visually doubling the spacing of long responses
+     and making them painful to scroll through. The dead `.resPara /
+     .resHeading / .resList` global CSS below was the original target
+     of that flex layout, but no current renderer produces those
+     classes (renderInline outputs span+br only). */
   padding-right: var(--space-3);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
 }
 
 .error {
@@ -578,7 +589,7 @@
   }
   .body {
     font-size: 16px;
-    line-height: 1.5;
+    line-height: 1.55;
     padding-right: 0;
   }
   .prompt {
