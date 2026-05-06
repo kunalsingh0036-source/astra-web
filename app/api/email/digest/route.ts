@@ -1,4 +1,5 @@
 import type { NextRequest } from "next/server";
+import { emailAgentUrl } from "@/lib/emailAgent";
 
 /**
  * GET /api/email/digest — proxies to Astra's email signals.
@@ -109,7 +110,7 @@ export async function GET(req: NextRequest) {
 
   try {
     const upstream = await fetch(
-      "http://localhost:8005/api/v1/messages/?direction=inbound&limit=200",
+      `${emailAgentUrl()}/api/v1/messages/?direction=inbound&limit=200`,
       { cache: "no-store" },
     );
     if (!upstream.ok) {

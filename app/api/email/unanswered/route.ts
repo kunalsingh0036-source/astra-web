@@ -1,4 +1,5 @@
 import type { NextRequest } from "next/server";
+import { emailAgentUrl } from "@/lib/emailAgent";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -83,9 +84,10 @@ export async function GET(req: NextRequest) {
   const days = Math.max(1, Math.min(60, Number(url.searchParams.get("days") ?? 14)));
 
   try {
+    const base = emailAgentUrl();
     const [inRes, outRes] = await Promise.all([
-      fetch("http://localhost:8005/api/v1/messages/?direction=inbound&limit=200", { cache: "no-store" }),
-      fetch("http://localhost:8005/api/v1/messages/?direction=outbound&limit=200", { cache: "no-store" }),
+      fetch(`${base}/api/v1/messages/?direction=inbound&limit=200`, { cache: "no-store" }),
+      fetch(`${base}/api/v1/messages/?direction=outbound&limit=200`, { cache: "no-store" }),
     ]);
     if (!inRes.ok || !outRes.ok) {
       return Response.json({ error: "email-agent upstream" }, { status: 502 });

@@ -1,4 +1,5 @@
 import type { NextRequest } from "next/server";
+import { emailAgentUrl } from "@/lib/emailAgent";
 
 /**
  * POST /api/artifact/send
@@ -44,7 +45,7 @@ export async function POST(req: NextRequest) {
   const channel = (payload.channel ?? "email").toLowerCase();
 
   if (channel === "email") {
-    const emailUrl = process.env.EMAIL_URL ?? "http://localhost:8005";
+    const emailUrl = emailAgentUrl();
     try {
       // email-agent expects list[str] for to/cc/bcc. Split on comma so
       // the UI can still show "a@x.com, b@x.com" but we hand the agent

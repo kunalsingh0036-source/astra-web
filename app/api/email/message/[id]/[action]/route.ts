@@ -1,4 +1,5 @@
 import type { NextRequest } from "next/server";
+import { emailAgentUrl } from "@/lib/emailAgent";
 
 /**
  * POST /api/email/message/{id}/{action}
@@ -28,7 +29,7 @@ export async function POST(
   const starred = url.searchParams.get("starred");
   const qs = starred !== null ? `?starred=${starred === "true" || starred === "1"}` : "";
 
-  const emailUrl = process.env.EMAIL_URL ?? "http://localhost:8005";
+  const emailUrl = emailAgentUrl();
   try {
     const up = await fetch(`${emailUrl}/api/v1/messages/${id}/${action}${qs}`, {
       method: "POST",
