@@ -42,11 +42,30 @@ export interface PaletteArtifact {
   notes: string;
 }
 
+export interface PreviewArtifact {
+  kind: "preview";
+  title: string;
+  notes: string;
+  /** "inline" — preview_id points to a stored asset served same-
+   *  origin via /api/preview/<id>. Renderable in iframe + open in
+   *  tab. "url" — direct external URL; only the open-in-tab path
+   *  works (X-Frame-Options on third-party sites). */
+  mode: "inline" | "url";
+  /** Set when mode === "inline". */
+  previewId?: string;
+  /** MIME type the upstream stored. UI uses this to decide whether
+   *  iframe rendering makes sense (only HTML / images). */
+  contentType?: string;
+  /** Set when mode === "url". */
+  url?: string;
+}
+
 export type Artifact =
   | TableArtifact
   | DraftArtifact
   | MetricArtifact
-  | PaletteArtifact;
+  | PaletteArtifact
+  | PreviewArtifact;
 
 /**
  * Normalize a raw artifact event payload into one of our typed
@@ -91,6 +110,29 @@ export function parseArtifact(raw: unknown): Artifact | null {
         sub: String(r.sub ?? ""),
         tone: String(r.tone ?? "default"),
       };
+
+    case "preview": {
+      const mode = String(r.mode ?? "") === "url" ? "url" : "inline";
+      const result: PreviewArtifact = {
+        kind: "preview",
+        title: String(r.title ?? ""),
+        notes: String(r.notes ?? ""),
+        mode,
+      };
+      if (mode === "url") {
+        const url = String(r.url ?? "").trim();
+        if (!url) return null;
+        result.url = url;
+      } else {
+        const previewId = String(r.preview_id ?? "").trim();
+        if (!previewId) return null;
+        result.previewId = previewId;
+        result.contentType = String(
+          r.content_type ?? "text/html; charset=utf-8",
+        );
+      }
+      return result;
+    }
 
     case "palette": {
       const rawColors = Array.isArray(r.colors) ? r.colors : [];

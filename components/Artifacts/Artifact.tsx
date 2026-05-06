@@ -7,6 +7,7 @@ import type {
   DraftArtifact,
   MetricArtifact,
   PaletteArtifact,
+  PreviewArtifact,
   TableArtifact,
 } from "@/lib/artifacts";
 
@@ -27,6 +28,8 @@ export function ArtifactView({ artifact }: { artifact: Artifact }) {
       return <MetricArtifactView a={artifact} />;
     case "palette":
       return <PaletteArtifactView a={artifact} />;
+    case "preview":
+      return <PreviewArtifactView a={artifact} />;
   }
 }
 
@@ -416,6 +419,76 @@ function PaletteArtifactView({ a }: { a: PaletteArtifact }) {
         })}
       </div>
       {a.notes && <p className={styles.paletteNotes}>{a.notes}</p>}
+    </figure>
+  );
+}
+
+/* ─── Preview ──────────────────────────────────────────────── */
+
+function PreviewArtifactView({ a }: { a: PreviewArtifact }) {
+  const [expanded, setExpanded] = useState(false);
+
+  // Inline iframe only makes sense for stored same-origin previews
+  // AND content types the browser knows how to render (HTML, image,
+  // PDF, plain text). For url-mode previews, X-Frame-Options on
+  // most third-party sites blocks embedding — fall back to "open
+  // in tab" only.
+  const canIframe = a.mode === "inline";
+  const inlineUrl = a.previewId ? `/api/preview/${a.previewId}` : null;
+  const openUrl = a.mode === "url" ? a.url : inlineUrl;
+
+  if (!openUrl) {
+    return null;
+  }
+
+  return (
+    <figure className={`${styles.artifact} ${styles.preview}`}>
+      <header className={styles.head}>
+        <span className={styles.label}>preview</span>
+        <span className={styles.title}>{a.title || "untitled preview"}</span>
+      </header>
+
+      {canIframe && inlineUrl && (
+        <div
+          className={`${styles.previewFrame} ${
+            expanded ? styles.previewFrameExpanded : ""
+          }`}
+        >
+          {/* Sandbox: scripts run (so the agent's HTML is interactive),
+              same-origin denied (the iframe can't read parent cookies
+              or DOM), forms allowed (so a draft mockup with a form
+              can demo). No popups, no top-level navigation. */}
+          <iframe
+            src={inlineUrl}
+            className={styles.previewIframe}
+            title={a.title || "preview"}
+            sandbox="allow-scripts allow-forms allow-popups-to-escape-sandbox"
+            loading="lazy"
+          />
+        </div>
+      )}
+
+      <div className={styles.previewActions}>
+        <a
+          className={styles.previewBtn}
+          href={openUrl}
+          target="_blank"
+          rel="noreferrer"
+        >
+          open in tab →
+        </a>
+        {canIframe && (
+          <button
+            type="button"
+            className={styles.previewBtn}
+            onClick={() => setExpanded((v) => !v)}
+          >
+            {expanded ? "shrink" : "expand"}
+          </button>
+        )}
+      </div>
+
+      {a.notes && <p className={styles.previewNotes}>{a.notes}</p>}
     </figure>
   );
 }

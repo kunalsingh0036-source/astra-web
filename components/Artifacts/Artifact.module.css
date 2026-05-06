@@ -391,3 +391,74 @@
   margin: 0;
   line-height: 1.5;
 }
+
+/* ─── Preview ──────────────────────────────────────────────── */
+
+.preview {
+  gap: var(--space-3);
+}
+
+.previewFrame {
+  position: relative;
+  border: var(--border-hair);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--abyss-0);
+  /* Resting size: roughly 16:9 mini-preview. Click "expand" to
+     dilate to a generous editorial column with the same aspect.
+     Both sizes still respect the artifact frame's max-width. */
+  height: 240px;
+  transition: height var(--dur-medium) var(--ease-out-soft);
+}
+
+.previewFrameExpanded {
+  height: 540px;
+}
+
+.previewIframe {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  display: block;
+  /* Ensures iframe content fills its viewport without inheriting
+     the parent's font tokens. */
+  background: white;
+}
+
+.previewActions {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+/* Button shape matches .draftBtn for chrome consistency */
+.previewBtn {
+  font-family: var(--font-mono);
+  font-size: var(--text-label);
+  letter-spacing: var(--tracking-micro);
+  color: var(--glow-body);
+  background: transparent;
+  border: var(--border-hair);
+  border-radius: var(--radius-full);
+  padding: var(--space-2) var(--space-4);
+  cursor: pointer;
+  text-decoration: none;
+  transition:
+    color var(--dur-small) var(--ease-out-soft),
+    border-color var(--dur-small) var(--ease-out-soft),
+    background var(--dur-small) var(--ease-out-soft);
+}
+.previewBtn:hover {
+  color: var(--glow-primary);
+  border-color: var(--glow-trace);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.previewNotes {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: 14px;
+  color: var(--glow-body);
+  margin: 0;
+  line-height: 1.5;
+}
