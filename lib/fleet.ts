@@ -7,6 +7,7 @@
  */
 
 import type { AgentName, AgentStatus } from "./types";
+import { urlForAgent } from "./agentUrls";
 
 export interface AgentHealth {
   id: AgentName;
@@ -32,18 +33,11 @@ export interface FleetState {
   degraded: boolean;
 }
 
-/** Service URL for each agent. Read from env at request time. */
+/** Service URL for each agent — delegates to lib/agentUrls so all
+ *  routing logic shares one resolver (public-tunnel default for
+ *  email/whatsapp; null/empty for agents whose URL isn't set). */
 function urlFor(agent: AgentName): string {
-  const byAgent: Record<AgentName, string | undefined> = {
-    email: process.env.EMAIL_URL,
-    finance: process.env.FINANCE_URL,
-    whatsapp: process.env.WHATSAPP_URL,
-    bookkeeper: process.env.BOOKKEEPER_URL,
-    linkedin: process.env.LINKEDIN_URL,
-    helmtech: process.env.HELMTECH_URL,
-    apex: process.env.APEX_URL,
-  };
-  return byAgent[agent] ?? "";
+  return urlForAgent(agent) ?? "";
 }
 
 async function probeAgent(agent: AgentName, signal: AbortSignal): Promise<AgentHealth> {

@@ -1,4 +1,5 @@
 import type { NextRequest } from "next/server";
+import { streamUrl } from "@/lib/agentUrls";
 
 /**
  * POST /api/push/test
@@ -15,7 +16,7 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 export async function POST(_req: NextRequest) {
-  const backend = process.env.STREAM_URL || "http://localhost:8700";
+  const backend = streamUrl();
   const secret =
     process.env.ASTRA_SHARED_SECRET ||
     process.env.STREAM_SHARED_SECRET ||

@@ -1,3 +1,5 @@
+import { whatsappUrl } from "@/lib/agentUrls";
+
 /**
  * GET /api/whatsapp/templates
  *
@@ -11,7 +13,7 @@ export const runtime = "nodejs";
 export async function GET(req: Request) {
   const url = new URL(req.url);
   const includeAll = url.searchParams.get("include_all") === "true";
-  const waUrl = process.env.WHATSAPP_URL ?? "http://localhost:8600";
+  const waUrl = whatsappUrl();
   try {
     const up = await fetch(`${waUrl}/api/v1/templates/`, { cache: "no-store" });
     if (!up.ok) {

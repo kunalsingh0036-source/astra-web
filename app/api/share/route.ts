@@ -1,4 +1,5 @@
 import type { NextRequest } from "next/server";
+import { streamUrl } from "@/lib/agentUrls";
 
 /**
  * POST /api/share — proxy from astra.thearrogantclub.com to astra-stream.
@@ -17,7 +18,7 @@ import type { NextRequest } from "next/server";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-const BACKEND = process.env.STREAM_URL || "http://localhost:8700";
+const BACKEND = streamUrl();
 
 export async function POST(req: NextRequest) {
   const auth = req.headers.get("authorization") ?? "";

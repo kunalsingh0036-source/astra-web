@@ -1,4 +1,5 @@
 import type { NextRequest } from "next/server";
+import { financeUrl } from "@/lib/agentUrls";
 
 /**
  * POST /api/finance/expense
@@ -40,12 +41,22 @@ export async function POST(req: NextRequest) {
       ? body.date
       : new Date().toISOString().slice(0, 10);
 
-  const financeUrl = process.env.FINANCE_URL ?? "http://localhost:8004";
+  const base = financeUrl();
+  if (!base) {
+    return Response.json(
+      {
+        error:
+          "finance-agent not configured (FINANCE_URL unset). " +
+          "Set it on Vercel or run finance-agent locally + export FINANCE_URL=http://localhost:8004.",
+      },
+      { status: 503 },
+    );
+  }
 
   let businessId = typeof body.business_id === "string" ? body.business_id : "";
   if (!businessId) {
     try {
-      const bres = await fetch(`${financeUrl}/api/v1/businesses/`, {
+      const bres = await fetch(`${base}/api/v1/businesses/`, {
         cache: "no-store",
       });
       if (bres.ok) {
@@ -67,7 +78,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const up = await fetch(`${financeUrl}/api/v1/expenses/`, {
+    const up = await fetch(`${base}/api/v1/expenses/`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({

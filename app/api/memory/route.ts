@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { astraPool } from "@/lib/db";
 import { toISO } from "@/lib/dbDate";
+import { streamUrl } from "@/lib/agentUrls";
 
 /**
  * GET /api/memory
@@ -96,7 +97,7 @@ async function semanticSearch(
   type: string | null,
   limit: number,
 ): Promise<NextResponse> {
-  const streamUrl = process.env.ASTRA_STREAM_URL ?? "http://localhost:8700";
+  const streamBase = streamUrl();
   const secret = process.env.ASTRA_SHARED_SECRET ?? "";
   const params = new URLSearchParams({ q, top_k: String(limit) });
   if (type && ALLOWED_TYPES.has(type)) params.set("memory_type", type);
@@ -105,7 +106,7 @@ async function semanticSearch(
   if (secret) headers["x-astra-secret"] = secret;
 
   try {
-    const r = await fetch(`${streamUrl}/memory/search?${params.toString()}`, {
+    const r = await fetch(`${streamBase}/memory/search?${params.toString()}`, {
       headers,
       cache: "no-store",
     });

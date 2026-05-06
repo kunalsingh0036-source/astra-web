@@ -1,4 +1,5 @@
 import type { NextRequest } from "next/server";
+import { streamUrl } from "@/lib/agentUrls";
 
 /**
  * POST /api/turns/[id]/cancel
@@ -36,7 +37,7 @@ export async function POST(
     return Response.json({ error: "invalid turn id" }, { status: 400 });
   }
 
-  const streamUrl = process.env.ASTRA_STREAM_URL ?? "http://localhost:8700";
+  const streamBase = streamUrl();
   const sharedSecret = process.env.ASTRA_SHARED_SECRET ?? "";
 
   const headers: Record<string, string> = {
@@ -45,7 +46,7 @@ export async function POST(
   if (sharedSecret) headers["x-astra-secret"] = sharedSecret;
 
   try {
-    const upstream = await fetch(`${streamUrl}/turns/${turnId}/cancel`, {
+    const upstream = await fetch(`${streamBase}/turns/${turnId}/cancel`, {
       method: "POST",
       headers,
       cache: "no-store",

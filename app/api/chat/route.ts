@@ -1,4 +1,5 @@
 import type { NextRequest } from "next/server";
+import { streamUrl } from "@/lib/agentUrls";
 
 /**
  * POST /api/chat
@@ -33,7 +34,7 @@ export const runtime = "nodejs";
 export const maxDuration = 10;
 
 export async function POST(req: NextRequest) {
-  const streamUrl = process.env.ASTRA_STREAM_URL ?? "http://localhost:8700";
+  const streamBase = streamUrl();
   const sharedSecret = process.env.ASTRA_SHARED_SECRET ?? "";
 
   let body: { prompt?: unknown; session_id?: unknown };
@@ -66,7 +67,7 @@ export async function POST(req: NextRequest) {
   // Legacy SSE fallback path. Set USE_LEGACY_SSE=1 to revert to
   // the streaming model in case polling has an unforeseen issue.
   if (process.env.USE_LEGACY_SSE === "1") {
-    return await proxyLegacyStream(streamUrl, upstreamHeaders, upstreamBody);
+    return await proxyLegacyStream(streamBase, upstreamHeaders, upstreamBody);
   }
 
   // POLLING PATH — POST /turns/start on the stream service. Returns
@@ -74,7 +75,7 @@ export async function POST(req: NextRequest) {
   // for progress until terminal status.
   let upstream: Response;
   try {
-    upstream = await fetch(`${streamUrl}/turns/start`, {
+    upstream = await fetch(`${streamBase}/turns/start`, {
       method: "POST",
       headers: upstreamHeaders,
       body: JSON.stringify(upstreamBody),
@@ -126,13 +127,13 @@ export async function POST(req: NextRequest) {
  * Will be deleted after polling has run a week without regressions.
  */
 async function proxyLegacyStream(
-  streamUrl: string,
+  streamBase: string,
   headers: Record<string, string>,
   body: Record<string, unknown>,
 ): Promise<Response> {
   let upstream: Response;
   try {
-    upstream = await fetch(`${streamUrl}/stream`, {
+    upstream = await fetch(`${streamBase}/stream`, {
       method: "POST",
       headers,
       body: JSON.stringify(body),

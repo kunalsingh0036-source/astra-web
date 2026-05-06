@@ -1,5 +1,5 @@
 import type { NextRequest } from "next/server";
-import { emailAgentUrl } from "@/lib/emailAgent";
+import { emailUrl } from "@/lib/agentUrls";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -84,7 +84,7 @@ export async function GET(req: NextRequest) {
   const days = Math.max(1, Math.min(60, Number(url.searchParams.get("days") ?? 14)));
 
   try {
-    const base = emailAgentUrl();
+    const base = emailUrl();
     const [inRes, outRes] = await Promise.all([
       fetch(`${base}/api/v1/messages/?direction=inbound&limit=200`, { cache: "no-store" }),
       fetch(`${base}/api/v1/messages/?direction=outbound&limit=200`, { cache: "no-store" }),

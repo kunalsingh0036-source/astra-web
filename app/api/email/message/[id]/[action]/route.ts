@@ -1,5 +1,5 @@
 import type { NextRequest } from "next/server";
-import { emailAgentUrl } from "@/lib/emailAgent";
+import { emailUrl } from "@/lib/agentUrls";
 
 /**
  * POST /api/email/message/{id}/{action}
@@ -29,9 +29,9 @@ export async function POST(
   const starred = url.searchParams.get("starred");
   const qs = starred !== null ? `?starred=${starred === "true" || starred === "1"}` : "";
 
-  const emailUrl = emailAgentUrl();
+  const base = emailUrl();
   try {
-    const up = await fetch(`${emailUrl}/api/v1/messages/${id}/${action}${qs}`, {
+    const up = await fetch(`${base}/api/v1/messages/${id}/${action}${qs}`, {
       method: "POST",
       cache: "no-store",
     });

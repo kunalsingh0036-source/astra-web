@@ -1,4 +1,5 @@
 import type { NextRequest } from "next/server";
+import { streamUrl } from "@/lib/agentUrls";
 
 /**
  * GET /api/preview/[id]
@@ -34,12 +35,12 @@ export async function GET(
     return new Response("invalid preview id", { status: 400 });
   }
 
-  const streamUrl = process.env.ASTRA_STREAM_URL ?? "http://localhost:8700";
+  const streamBase = streamUrl();
   const sharedSecret = process.env.ASTRA_SHARED_SECRET ?? "";
 
   let upstream: Response;
   try {
-    upstream = await fetch(`${streamUrl}/previews/${encodeURIComponent(id)}`, {
+    upstream = await fetch(`${streamBase}/previews/${encodeURIComponent(id)}`, {
       method: "GET",
       headers: sharedSecret
         ? { "x-astra-secret": sharedSecret }

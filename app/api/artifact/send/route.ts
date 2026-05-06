@@ -1,5 +1,5 @@
 import type { NextRequest } from "next/server";
-import { emailAgentUrl } from "@/lib/emailAgent";
+import { emailUrl, whatsappUrl } from "@/lib/agentUrls";
 
 /**
  * POST /api/artifact/send
@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
   const channel = (payload.channel ?? "email").toLowerCase();
 
   if (channel === "email") {
-    const emailUrl = emailAgentUrl();
+    const base = emailUrl();
     try {
       // email-agent expects list[str] for to/cc/bcc. Split on comma so
       // the UI can still show "a@x.com, b@x.com" but we hand the agent
@@ -59,7 +59,7 @@ export async function POST(req: NextRequest) {
         .map((s) => s.trim())
         .filter(Boolean);
 
-      const up = await fetch(`${emailUrl}/api/v1/messages/send`, {
+      const up = await fetch(`${base}/api/v1/messages/send`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
@@ -83,7 +83,7 @@ export async function POST(req: NextRequest) {
   }
 
   if (channel === "whatsapp") {
-    const waUrl = process.env.WHATSAPP_URL ?? "http://localhost:8600";
+    const waUrl = whatsappUrl();
     // Build body depending on whether the caller wants a free-text
     // message (inside the 24h window) or a template send.
     const waBody = payload.template_name

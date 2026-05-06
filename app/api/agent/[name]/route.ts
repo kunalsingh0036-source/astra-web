@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { AgentName } from "@/lib/types";
+import { urlForAgent } from "@/lib/agentUrls";
 
 /**
  * GET /api/agent/[name]
@@ -20,15 +21,15 @@ interface Params {
   name: string;
 }
 
-const URL_FOR: Record<AgentName, string | undefined> = {
-  email: process.env.EMAIL_URL,
-  finance: process.env.FINANCE_URL,
-  whatsapp: process.env.WHATSAPP_URL,
-  bookkeeper: process.env.BOOKKEEPER_URL,
-  linkedin: process.env.LINKEDIN_URL,
-  helmtech: process.env.HELMTECH_URL,
-  apex: process.env.APEX_URL,
-};
+// URL_FOR previously read each env var directly — that meant
+// localhost was the implicit fallback for email/whatsapp routes
+// and the dispatch was inconsistent with the per-route helpers.
+// Now goes through lib/agentUrls so all agent-routing logic shares
+// one resolver (public-tunnel default for email/whatsapp; null for
+// agents whose URL isn't set so the caller can return 503).
+function urlFor(name: AgentName): string | undefined {
+  return urlForAgent(name) ?? undefined;
+}
 
 async function safeJson<T>(
   url: string,
@@ -100,7 +101,7 @@ export async function GET(
 ) {
   const { name } = await params;
   const agent = name as AgentName;
-  const url = URL_FOR[agent];
+  const url = urlFor(agent);
 
   if (!url) {
     return NextResponse.json({ error: "unknown agent" }, { status: 404 });
