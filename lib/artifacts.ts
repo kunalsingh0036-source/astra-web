@@ -60,12 +60,31 @@ export interface PreviewArtifact {
   url?: string;
 }
 
+export interface ImageArtifact {
+  kind: "image";
+  title: string;
+  /** Either a `data:image/...;base64,…` URI (typical for bridge-
+   *  daemon screenshots — self-contained, no server round-trip) or
+   *  a same-origin/remote http(s) URL. */
+  url: string;
+  alt: string;
+  notes: string;
+  /** When the image was rendered FROM a URL (e.g. screenshot of a
+   *  page), the source URL of the captured page — distinct from
+   *  `url`, which is the IMAGE's location. */
+  sourceUrl?: string;
+  width?: number;
+  height?: number;
+  byteCount?: number;
+}
+
 export type Artifact =
   | TableArtifact
   | DraftArtifact
   | MetricArtifact
   | PaletteArtifact
-  | PreviewArtifact;
+  | PreviewArtifact
+  | ImageArtifact;
 
 /**
  * Normalize a raw artifact event payload into one of our typed
@@ -110,6 +129,37 @@ export function parseArtifact(raw: unknown): Artifact | null {
         sub: String(r.sub ?? ""),
         tone: String(r.tone ?? "default"),
       };
+
+    case "image": {
+      const url = String(r.url ?? "").trim();
+      // Reject obviously bad payloads — empty url is unrenderable;
+      // a non-data, non-http url is suspicious. Better to drop than
+      // surface a broken <img>.
+      if (!url) return null;
+      if (
+        !url.startsWith("data:image/") &&
+        !url.startsWith("http://") &&
+        !url.startsWith("https://") &&
+        !url.startsWith("/")
+      ) {
+        return null;
+      }
+      const widthRaw = r.width;
+      const heightRaw = r.height;
+      const byteCountRaw = r.byte_count ?? r.byteCount;
+      return {
+        kind: "image",
+        title: String(r.title ?? ""),
+        url,
+        alt: String(r.alt ?? r.title ?? ""),
+        notes: String(r.notes ?? ""),
+        sourceUrl: String(r.source_url ?? r.sourceUrl ?? "") || undefined,
+        width: typeof widthRaw === "number" ? widthRaw : undefined,
+        height: typeof heightRaw === "number" ? heightRaw : undefined,
+        byteCount:
+          typeof byteCountRaw === "number" ? byteCountRaw : undefined,
+      };
+    }
 
     case "preview": {
       const mode = String(r.mode ?? "") === "url" ? "url" : "inline";

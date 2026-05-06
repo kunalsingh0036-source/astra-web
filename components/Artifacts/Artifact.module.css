@@ -462,3 +462,58 @@
   margin: 0;
   line-height: 1.5;
 }
+
+/* ─── Image ────────────────────────────────────────────────── */
+
+.image {
+  gap: var(--space-3);
+}
+
+.imageFrame {
+  border: var(--border-hair);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--abyss-0);
+  /* Resting size constrains tall screenshots so the artifact
+     doesn't dominate the chat. Click the image (or "expand") to
+     see it at full intrinsic size with scroll. */
+  max-height: 360px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: max-height var(--dur-medium) var(--ease-out-soft);
+}
+
+.imageFrameExpanded {
+  max-height: none;
+  overflow: auto;
+}
+
+.imageContent {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  cursor: zoom-in;
+}
+
+.imageFrameExpanded .imageContent {
+  cursor: zoom-out;
+  /* Allow horizontal scroll on extra-wide images when expanded */
+  max-width: none;
+  width: auto;
+}
+
+.imageActions {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.imageMeta {
+  font-family: var(--font-mono);
+  font-size: var(--text-label);
+  letter-spacing: var(--tracking-micro);
+  color: var(--glow-whisper);
+  margin-left: auto;
+}

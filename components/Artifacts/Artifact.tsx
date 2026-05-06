@@ -5,6 +5,7 @@ import styles from "./Artifact.module.css";
 import type {
   Artifact,
   DraftArtifact,
+  ImageArtifact,
   MetricArtifact,
   PaletteArtifact,
   PreviewArtifact,
@@ -30,6 +31,8 @@ export function ArtifactView({ artifact }: { artifact: Artifact }) {
       return <PaletteArtifactView a={artifact} />;
     case "preview":
       return <PreviewArtifactView a={artifact} />;
+    case "image":
+      return <ImageArtifactView a={artifact} />;
   }
 }
 
@@ -491,4 +494,84 @@ function PreviewArtifactView({ a }: { a: PreviewArtifact }) {
       {a.notes && <p className={styles.previewNotes}>{a.notes}</p>}
     </figure>
   );
+}
+
+/* ─── Image ────────────────────────────────────────────────── */
+
+function ImageArtifactView({ a }: { a: ImageArtifact }) {
+  const [expanded, setExpanded] = useState(false);
+
+  // Format byte_count → "200 KB" / "1.4 MB" for the meta line. Used
+  // to set expectations on slow connections + as a sanity hint when
+  // the image is unexpectedly huge.
+  const sizeLabel = a.byteCount ? formatBytes(a.byteCount) : "";
+  const dimLabel =
+    a.width && a.height ? `${a.width}×${a.height}` : "";
+  const meta = [dimLabel, sizeLabel].filter(Boolean).join(" · ");
+
+  return (
+    <figure className={`${styles.artifact} ${styles.image}`}>
+      <header className={styles.head}>
+        <span className={styles.label}>image</span>
+        <span className={styles.title}>{a.title || "untitled image"}</span>
+      </header>
+
+      <div
+        className={`${styles.imageFrame} ${
+          expanded ? styles.imageFrameExpanded : ""
+        }`}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={a.url}
+          alt={a.alt || a.title || ""}
+          className={styles.imageContent}
+          loading="lazy"
+          onClick={() => setExpanded((v) => !v)}
+        />
+      </div>
+
+      <div className={styles.imageActions}>
+        <a
+          className={styles.previewBtn}
+          href={a.url}
+          target="_blank"
+          rel="noreferrer"
+          download={a.url.startsWith("data:") ? imageFileName(a) : undefined}
+        >
+          {a.url.startsWith("data:") ? "download" : "open in tab →"}
+        </a>
+        {a.sourceUrl &&
+          a.sourceUrl !== a.url && (
+            <a
+              className={styles.previewBtn}
+              href={a.sourceUrl}
+              target="_blank"
+              rel="noreferrer"
+            >
+              visit source →
+            </a>
+          )}
+        {meta && <span className={styles.imageMeta}>{meta}</span>}
+      </div>
+
+      {a.notes && <p className={styles.previewNotes}>{a.notes}</p>}
+    </figure>
+  );
+}
+
+function formatBytes(n: number): string {
+  if (!Number.isFinite(n) || n <= 0) return "";
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(0)} KB`;
+  return `${(n / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function imageFileName(a: ImageArtifact): string {
+  const base = (a.title || "screenshot")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 60);
+  return `${base || "screenshot"}.png`;
 }
