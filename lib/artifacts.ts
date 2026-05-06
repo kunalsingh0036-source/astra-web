@@ -30,7 +30,23 @@ export interface MetricArtifact {
   tone: "default" | "urgent" | string;
 }
 
-export type Artifact = TableArtifact | DraftArtifact | MetricArtifact;
+export interface PaletteSwatch {
+  hex: string;
+  label: string;
+}
+
+export interface PaletteArtifact {
+  kind: "palette";
+  name: string;
+  colors: PaletteSwatch[];
+  notes: string;
+}
+
+export type Artifact =
+  | TableArtifact
+  | DraftArtifact
+  | MetricArtifact
+  | PaletteArtifact;
 
 /**
  * Normalize a raw artifact event payload into one of our typed
@@ -75,6 +91,29 @@ export function parseArtifact(raw: unknown): Artifact | null {
         sub: String(r.sub ?? ""),
         tone: String(r.tone ?? "default"),
       };
+
+    case "palette": {
+      const rawColors = Array.isArray(r.colors) ? r.colors : [];
+      const colors: PaletteSwatch[] = [];
+      for (const c of rawColors) {
+        if (!c || typeof c !== "object") continue;
+        const cr = c as Record<string, unknown>;
+        let hex = String(cr.hex ?? cr.color ?? "").trim();
+        if (hex && !hex.startsWith("#")) hex = `#${hex}`;
+        const label = String(cr.label ?? cr.name ?? "").trim();
+        // Only keep entries with a parseable hex — avoids rendering
+        // empty/garbage swatches if the agent's payload is partial.
+        if (/^#[0-9a-fA-F]{3,8}$/.test(hex)) {
+          colors.push({ hex, label });
+        }
+      }
+      return {
+        kind: "palette",
+        name: String(r.name ?? ""),
+        colors,
+        notes: String(r.notes ?? ""),
+      };
+    }
 
     default:
       return null;

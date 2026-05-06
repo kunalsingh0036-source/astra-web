@@ -310,3 +310,84 @@
   letter-spacing: var(--tracking-micro);
   color: var(--glow-whisper);
 }
+
+/* ─── Palette ──────────────────────────────────────────────── */
+
+.palette {
+  /* Inherits .artifact frame; just tighten the body gap so the
+     header sits closer to the swatch grid. */
+  gap: var(--space-3);
+}
+
+.paletteGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: var(--space-2);
+}
+
+/* Each swatch is a tappable button. Click → copy hex to clipboard.
+   The swatch background IS the color; label + hex sit on top with
+   automatic light/dark contrast (computed in PaletteArtifactView). */
+.swatch {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: flex-start;
+  height: 96px;
+  padding: var(--space-3);
+  border: var(--border-hair);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  text-align: left;
+  font-family: var(--font-mono);
+  letter-spacing: var(--tracking-micro);
+  transition:
+    transform var(--dur-small) var(--ease-out-soft),
+    box-shadow var(--dur-small) var(--ease-out-soft);
+}
+.swatch:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.45);
+}
+.swatch:focus-visible {
+  outline: 2px solid var(--glow-primary);
+  outline-offset: 2px;
+}
+
+/* Light backgrounds need dark text; dark backgrounds need light. */
+.swatchLight {
+  color: rgba(0, 0, 0, 0.78);
+}
+.swatchLight .swatchLabel {
+  color: rgba(0, 0, 0, 0.55);
+}
+.swatchDark {
+  color: rgba(255, 255, 255, 0.94);
+}
+.swatchDark .swatchLabel {
+  color: rgba(255, 255, 255, 0.62);
+}
+
+.swatchHex {
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: lowercase;
+}
+
+.swatchLabel {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: 12px;
+  margin-top: 2px;
+  letter-spacing: 0;
+}
+
+.paletteNotes {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: 14px;
+  color: var(--glow-body);
+  margin: 0;
+  line-height: 1.5;
+}

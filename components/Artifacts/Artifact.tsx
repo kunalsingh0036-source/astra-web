@@ -6,6 +6,7 @@ import type {
   Artifact,
   DraftArtifact,
   MetricArtifact,
+  PaletteArtifact,
   TableArtifact,
 } from "@/lib/artifacts";
 
@@ -24,6 +25,8 @@ export function ArtifactView({ artifact }: { artifact: Artifact }) {
       return <DraftArtifactView a={artifact} />;
     case "metric":
       return <MetricArtifactView a={artifact} />;
+    case "palette":
+      return <PaletteArtifactView a={artifact} />;
   }
 }
 
@@ -338,6 +341,81 @@ function MetricArtifactView({ a }: { a: MetricArtifact }) {
         {a.value}
       </div>
       {a.sub && <div className={styles.metricSub}>{a.sub}</div>}
+    </figure>
+  );
+}
+
+/* ─── Palette ──────────────────────────────────────────────── */
+
+function PaletteArtifactView({ a }: { a: PaletteArtifact }) {
+  const [copiedHex, setCopiedHex] = useState<string | null>(null);
+
+  // Pick contrasting text color for the swatch label so it stays
+  // readable on dark AND light swatches without a designer manually
+  // tagging each one. WCAG-ish: relative luminance threshold ~0.55.
+  const contrastFor = (hex: string): "light" | "dark" => {
+    const m = hex.replace("#", "");
+    if (m.length !== 6 && m.length !== 3) return "light";
+    const exp = m.length === 3
+      ? m.split("").map((c) => c + c).join("")
+      : m;
+    const r = parseInt(exp.slice(0, 2), 16) / 255;
+    const g = parseInt(exp.slice(2, 4), 16) / 255;
+    const b = parseInt(exp.slice(4, 6), 16) / 255;
+    // Approximate relative luminance
+    const lum = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    return lum > 0.55 ? "dark" : "light";
+  };
+
+  const onCopy = async (hex: string) => {
+    try {
+      await navigator.clipboard.writeText(hex);
+      setCopiedHex(hex);
+      setTimeout(
+        () => setCopiedHex((c) => (c === hex ? null : c)),
+        1200,
+      );
+    } catch {
+      // Clipboard denied (insecure context) — fall back to no-op;
+      // user can long-press / right-click the swatch to copy manually.
+    }
+  };
+
+  return (
+    <figure className={`${styles.artifact} ${styles.palette}`}>
+      <header className={styles.head}>
+        <span className={styles.label}>palette</span>
+        {a.name && <span className={styles.title}>{a.name}</span>}
+      </header>
+      <div className={styles.paletteGrid}>
+        {a.colors.map((c, i) => {
+          const tone = contrastFor(c.hex);
+          const wasCopied = copiedHex === c.hex;
+          return (
+            <button
+              key={`${c.hex}-${i}`}
+              type="button"
+              className={`${styles.swatch} ${
+                tone === "light"
+                  ? styles.swatchLight
+                  : styles.swatchDark
+              }`}
+              style={{ background: c.hex }}
+              onClick={() => onCopy(c.hex)}
+              aria-label={`copy ${c.hex}${c.label ? ` — ${c.label}` : ""}`}
+              title={c.label ? `${c.hex} · ${c.label}` : c.hex}
+            >
+              <span className={styles.swatchHex}>
+                {wasCopied ? "copied" : c.hex.toLowerCase()}
+              </span>
+              {c.label && (
+                <span className={styles.swatchLabel}>{c.label}</span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+      {a.notes && <p className={styles.paletteNotes}>{a.notes}</p>}
     </figure>
   );
 }
