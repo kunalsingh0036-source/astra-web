@@ -28,6 +28,11 @@ interface SessionRow {
   first_prompt: string;
   last_status: string;
   last_response_head: string | null;
+  /** Haiku-generated topic title from session_titles. NULL when the
+   *  background generator hasn't run yet (just-finished session) or
+   *  when generation failed irrecoverably (rate limit, model
+   *  deprecation). UI falls back to the truncated first_prompt. */
+  title: string | null;
 }
 
 let _pool: Pool | null = null;
@@ -61,9 +66,12 @@ export async function GET(req: NextRequest) {
 
   // GROUP BY session_id with windowed reads for first/last turn metadata.
   // We pull the first turn's prompt (chronologically first by started_at)
-  // as the session's "title" — it usually summarizes what the chat is
-  // about. The last turn's status indicates whether the session is
-  // currently active or finished cleanly.
+  // as the session's fallback title. The last turn's status indicates
+  // whether the session is currently active or finished cleanly.
+  //
+  // LEFT JOIN session_titles to get the Haiku-generated topic title.
+  // Filter (q) checks BOTH the title AND the first prompt so the
+  // search bar finds sessions by topic OR by literal prompt content.
   const sql = `
     WITH session_rollup AS (
       SELECT
@@ -95,10 +103,14 @@ export async function GET(req: NextRequest) {
       WHERE session_id IS NOT NULL
       GROUP BY session_id
     )
-    SELECT *
-    FROM session_rollup
-    ${q ? "WHERE first_prompt ILIKE $2" : ""}
-    ORDER BY last_turn_at DESC
+    SELECT
+      sr.*,
+      st.title
+    FROM session_rollup sr
+    LEFT JOIN session_titles st
+      ON st.session_id = sr.session_id
+    ${q ? "WHERE (st.title ILIKE $2 OR sr.first_prompt ILIKE $2)" : ""}
+    ORDER BY sr.last_turn_at DESC
     LIMIT $1
   `;
 
@@ -115,6 +127,7 @@ export async function GET(req: NextRequest) {
         first_prompt: row.first_prompt || "(empty prompt)",
         last_status: row.last_status || "unknown",
         last_response_head: row.last_response_head || null,
+        title: row.title || null,
       })),
     });
   } catch (e) {

@@ -25,6 +25,10 @@ interface Session {
   first_prompt: string;
   last_status: string;
   last_response_head: string | null;
+  /** Haiku-generated topic title. NULL when the background generator
+   *  hasn't run yet (just-finished session) or generation failed.
+   *  UI falls back to the truncated first_prompt in that case. */
+  title: string | null;
 }
 
 function formatRelativeTime(iso: string): string {
@@ -109,6 +113,7 @@ export default function SessionsPage() {
     if (!q) return sessions;
     return sessions.filter(
       (s) =>
+        (s.title || "").toLowerCase().includes(q) ||
         s.first_prompt.toLowerCase().includes(q) ||
         (s.last_response_head || "").toLowerCase().includes(q),
     );
@@ -192,9 +197,24 @@ export default function SessionsPage() {
                   {status.text}
                 </span>
               </div>
-              <p className={styles.rowPrompt}>
-                {truncate(s.first_prompt, 220)}
-              </p>
+              {/* Title hierarchy:
+                    1. Haiku-generated topic title (primary)
+                    2. Truncated first prompt (muted subtitle)
+                  When the title hasn't been generated yet (just-finished
+                  session, or backfill not run), the first-prompt
+                  promotes back to primary so the row stays usable. */}
+              {s.title ? (
+                <>
+                  <p className={styles.rowTitle}>{s.title}</p>
+                  <p className={styles.rowPrompt}>
+                    {truncate(s.first_prompt, 200)}
+                  </p>
+                </>
+              ) : (
+                <p className={styles.rowTitle}>
+                  {truncate(s.first_prompt, 220)}
+                </p>
+              )}
               {s.last_response_head && (
                 <p className={styles.rowResponse}>
                   → {truncate(s.last_response_head, 200)}

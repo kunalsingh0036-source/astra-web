@@ -194,12 +194,29 @@
   50%      { opacity: 1; }
 }
 
-.rowPrompt {
+/* Primary row title — Haiku-generated topic OR (when title is
+   missing) the first prompt promoted to primary. Editorial italic
+   serif at 22px, glow-primary for full hierarchy weight. */
+.rowTitle {
   font-family: var(--font-display);
   font-style: italic;
   font-size: 22px;
   line-height: 1.35;
   color: var(--glow-primary);
+  margin: 0;
+}
+
+/* Subtitle — the literal first prompt. Mono so it reads as a
+   technical hint of "what was actually said," distinct from the
+   editorial-serif title above. Smaller, muted. Visible only when
+   a title is also present (otherwise the prompt promotes back to
+   .rowTitle). */
+.rowPrompt {
+  font-family: var(--font-mono);
+  font-size: var(--text-caption);
+  line-height: 1.5;
+  letter-spacing: var(--tracking-micro);
+  color: var(--glow-muted);
   margin: 0;
 }
 
