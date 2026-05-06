@@ -40,6 +40,25 @@ function urlFor(agent: AgentName): string {
   return urlForAgent(agent) ?? "";
 }
 
+/**
+ * Probe an agent for liveness. Tolerant of three real-world drifts:
+ *
+ *   1. Path convention: FastAPI agents (email, finance, whatsapp)
+ *      expose /health; Next.js dashboards (linkedin) expose
+ *      /api/health. Try /health first, fall back to /api/health.
+ *
+ *   2. Status string: backends use "healthy"; some apps return
+ *      "ok"; some return nothing structured. Accept both. Treat
+ *      a successful HTTP 200 with parseable JSON as reachable
+ *      regardless of status string — the dashboard agents that
+ *      respond at all are alive.
+ *
+ *   3. HTML responses (Next.js catch-all routes returning 200
+ *      HTML for unknown paths): the JSON parse fails, we don't
+ *      crash, treat as unreachable. This is the right answer —
+ *      a frontend without a real health endpoint shouldn't
+ *      claim active.
+ */
 async function probeAgent(agent: AgentName, signal: AbortSignal): Promise<AgentHealth> {
   const url = urlFor(agent);
   const probedAt = new Date().toISOString();
@@ -48,28 +67,45 @@ async function probeAgent(agent: AgentName, signal: AbortSignal): Promise<AgentH
     return { id: agent, status: "dim", reachable: false, probedAt };
   }
 
-  try {
-    const res = await fetch(`${url}/health`, {
-      signal,
-      cache: "no-store",
-      // Server-side fetch — no CORS concerns.
-    });
-    if (!res.ok) {
-      return { id: agent, status: "dim", reachable: false, probedAt };
+  // Try the canonical /health first, then /api/health for Next.js-
+  // routed agents. The first one that returns 200 + parseable JSON
+  // wins; if both fail, the agent is dim.
+  for (const path of ["/health", "/api/health"]) {
+    try {
+      const res = await fetch(`${url}${path}`, {
+        signal,
+        cache: "no-store",
+      });
+      if (!res.ok) continue;
+      // Parse JSON; if the route returns HTML (catch-all), this
+      // throws and we treat the path as not-a-real-health-endpoint.
+      let body: Record<string, unknown>;
+      try {
+        body = (await res.json()) as Record<string, unknown>;
+      } catch {
+        continue;
+      }
+      const status = body.status;
+      // Accept "healthy", "ok", or any truthy string + 200 status.
+      // The fastapi convention is "healthy"; nextjs convention is
+      // "ok"; some agents just return {ok: true}. All count.
+      const healthy =
+        status === "healthy" ||
+        status === "ok" ||
+        body.ok === true ||
+        (typeof status === "string" && status.length > 0);
+      return {
+        id: agent,
+        status: healthy ? "active" : "dim",
+        reachable: true,
+        raw: body,
+        probedAt,
+      };
+    } catch {
+      // network error / timeout — try next path, then give up
     }
-    const body = (await res.json()) as Record<string, unknown>;
-    const status = body.status;
-    const healthy = status === "healthy";
-    return {
-      id: agent,
-      status: healthy ? "active" : "dim",
-      reachable: true,
-      raw: body,
-      probedAt,
-    };
-  } catch {
-    return { id: agent, status: "dim", reachable: false, probedAt };
   }
+  return { id: agent, status: "dim", reachable: false, probedAt };
 }
 
 async function probeBridge(signal: AbortSignal) {
