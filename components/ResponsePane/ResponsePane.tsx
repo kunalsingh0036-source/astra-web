@@ -263,6 +263,9 @@ export function ResponsePane() {
                 <MarkdownView text={turn.response} />
               </div>
             )}
+            {turn.errorMessage && (
+              <p className={styles.error}>{turn.errorMessage}</p>
+            )}
             {turn.artifacts.map((a, j) => (
               <ArtifactView key={`hist-${turn.id}-${j}`} artifact={a} />
             ))}

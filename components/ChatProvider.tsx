@@ -64,6 +64,11 @@ export interface Turn {
    *  durationMs and the response come from the server's terminal
    *  state, not from localStorage. */
   completedWhileAway?: boolean;
+  /** Error message captured at done-time when the turn ended with
+   *  an error event before completing. Renders as the error chip on
+   *  the history row so the user sees WHY the turn failed without
+   *  the in-flight pane staying open + duplicating the prompt. */
+  errorMessage?: string;
 }
 
 export interface ChatState {
@@ -862,6 +867,15 @@ function applyEventInner(
       return { ...s, artifacts: [...s.artifacts, parsed] };
     }
     case "done": {
+      // If an `error` event fired earlier in this turn, s.error is
+      // set. Capture it onto the history Turn so the row shows WHY
+      // it failed — AND clear state.error / state.lastPrompt so the
+      // in-flight pane (which renders while error is set) stops
+      // showing the same prompt again. Without this cleanup, every
+      // failed turn duplicated visually: once in history (pushed
+      // here), once in the in-flight pane (kept alive by error
+      // being truthy + lastPrompt being set).
+      const wasError = !!s.error;
       const turn: Turn = {
         id: crypto.randomUUID(),
         prompt: currentPrompt,
@@ -876,11 +890,19 @@ function applyEventInner(
         // ("I didn't ask anything just now") — the badge tells them
         // why.
         completedWhileAway: isResume ? true : undefined,
+        errorMessage: wasError ? humanizeError(s.error) : undefined,
       };
       playChime("task");
       return {
         ...s,
         isStreaming: false,
+        // Clear error + lastPrompt only when the turn failed — for
+        // a successful turn there's no error to clear, and keeping
+        // lastPrompt around briefly is harmless (the next ask()
+        // overwrites it). For a failed turn the cleanup is what
+        // kills the duplication.
+        error: wasError ? null : s.error,
+        lastPrompt: wasError ? null : s.lastPrompt,
         lastDurationMs: event.duration_ms,
         lastCostUsd: event.cost_usd ?? null,
         thoughts: s.thoughts.map((t) => ({ ...t, stale: true })),
@@ -889,7 +911,74 @@ function applyEventInner(
       };
     }
     case "error":
-      return { ...s, isStreaming: false, error: event.message, turnStartedAt: null };
+      return {
+        ...s,
+        isStreaming: false,
+        error: humanizeError(event.message),
+        turnStartedAt: null,
+      };
   }
   return s;
+}
+
+/**
+ * Turn the lean-runtime / Anthropic SDK error blobs into a human-
+ * readable one-liner. Without this the user stares at JSON like
+ * `lean runtime error (BadRequestError): Error code: 400 - {'type':
+ * 'error', ...}` and has to parse it themselves.
+ *
+ * Specific cases worth detecting:
+ *   - credit balance depleted → tell the user to add credits where
+ *   - rate limited → tell them to wait + retry
+ *   - context-window blown → tell them to start a new conversation
+ *   - server overload → tell them it's transient + retry
+ *
+ * Everything else falls through as the raw message (preserved so we
+ * don't accidentally hide unfamiliar errors). One-line cap so the
+ * UI doesn't get a wall of text.
+ */
+function humanizeError(raw: string | null | undefined): string {
+  const msg = (raw || "").trim();
+  if (!msg) return "";
+  const lower = msg.toLowerCase();
+
+  if (
+    lower.includes("credit balance is too low") ||
+    lower.includes("insufficient_quota")
+  ) {
+    return (
+      "Anthropic API credits depleted. Top up at console.anthropic.com → " +
+      "Plans & Billing, then retry."
+    );
+  }
+  if (lower.includes("rate_limit") || lower.includes("429")) {
+    return "Anthropic API rate-limited. Wait ~30s and retry.";
+  }
+  if (
+    lower.includes("prompt is too long") ||
+    lower.includes("maximum context length")
+  ) {
+    return (
+      "Conversation exceeded the model's context window. Start a fresh " +
+      "session (`reset` or open a new chat) to continue."
+    );
+  }
+  if (lower.includes("overloaded") || lower.includes("503")) {
+    return "Anthropic API overloaded right now. Transient — retry in a moment.";
+  }
+  if (
+    lower.includes("authentication") ||
+    lower.includes("api key") ||
+    lower.includes("401")
+  ) {
+    return (
+      "Anthropic API rejected the key. Check ANTHROPIC_API_KEY on Railway " +
+      "is current and not revoked."
+    );
+  }
+
+  // Unknown error — return the message verbatim, capped so the UI
+  // doesn't get a wall of text. The user can still see the key
+  // detail if they hover or expand.
+  return msg.length > 240 ? msg.slice(0, 237) + "…" : msg;
 }
