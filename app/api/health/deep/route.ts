@@ -24,10 +24,23 @@ import { Pool } from "pg";
  *
  * Output shape:
  *   {
- *     status: "ok" | "degraded" | "down",
+ *     status: "ok" | "cloud_only" | "degraded" | "down",
  *     probedAt: ISO timestamp,
  *     checks: { name, status, detail?, duration_ms }[],
  *   }
+ *
+ * About `cloud_only`:
+ *   The bridge daemon runs on Kunal's Mac (intentional — local file
+ *   tools need a process on the actual machine). When the laptop is
+ *   asleep/off, the bridge stops polling and its check returns
+ *   "degraded". That's NORMAL when the laptop is closed, not a
+ *   system failure. We surface this as `cloud_only` so the UI can
+ *   stop screaming "agent down" when the cloud half is perfectly
+ *   fine. Mapping:
+ *     - all cloud checks ok, bridge ok            → "ok"
+ *     - all cloud checks ok, bridge degraded      → "cloud_only"   ← new
+ *     - any cloud check degraded                  → "degraded"
+ *     - any check (cloud or bridge) "down"        → "down"
  *
  * Public — no auth required so monitoring (UptimeRobot, GitHub
  * Actions, etc.) can hit it without credentials. The detail
@@ -258,7 +271,13 @@ async function checkBridgeDaemon(): Promise<CheckResult> {
     return {
       name: "bridge_daemon",
       status: "degraded",
-      detail: "no daemon polled in last 60s — local_* tools unavailable",
+      // Worded for the common case (laptop asleep / off) rather than the
+      // alarming "no daemon polled" framing. Astra's cloud half is fully
+      // operational without the bridge — only local-Mac tools are
+      // affected. The aggregator below treats this as `cloud_only`
+      // rather than `degraded` so the badge doesn't shout when the
+      // laptop is just closed.
+      detail: "laptop sleeping or off — local-file tools paused until it wakes",
       duration_ms: duration,
     };
   }
@@ -319,13 +338,26 @@ export async function GET(_req: NextRequest) {
   ]);
   const checks: CheckResult[] = [pg, stream, ...streamDeep, bridge, turns];
 
+  // Aggregator rules (see module docstring for the rationale):
+  //   - Any check `down`                              → "down"
+  //   - Bridge degraded BUT every other check ok      → "cloud_only"
+  //     (laptop closed; cloud agent fully functional)
+  //   - Any non-bridge check degraded                 → "degraded"
+  //   - All ok                                        → "ok"
   const anyDown = checks.some((c) => c.status === "down");
-  const anyDegraded = checks.some((c) => c.status === "degraded");
-  const status: "ok" | "degraded" | "down" = anyDown
+  const cloudChecks = checks.filter((c) => c.name !== "bridge_daemon");
+  const cloudDegraded = cloudChecks.some((c) => c.status === "degraded");
+  const cloudOk = cloudChecks.every((c) => c.status === "ok");
+  const bridgeCheck = checks.find((c) => c.name === "bridge_daemon");
+  const bridgeDegraded = bridgeCheck?.status === "degraded";
+
+  const status: "ok" | "cloud_only" | "degraded" | "down" = anyDown
     ? "down"
-    : anyDegraded
+    : cloudDegraded
       ? "degraded"
-      : "ok";
+      : cloudOk && bridgeDegraded
+        ? "cloud_only"
+        : "ok";
 
   return Response.json(
     {

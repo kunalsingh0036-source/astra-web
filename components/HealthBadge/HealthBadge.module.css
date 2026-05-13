@@ -117,3 +117,30 @@
   color: var(--glow-whisper);
   font-size: 10px;
 }
+
+/* Explainer block — only shown in `cloud_only` mode so the user
+   understands the bridge being offline is normal, not a failure.
+   Editorial-italic to differentiate from the technical mono rows
+   below it; muted color so it doesn't compete with the check list. */
+.popExplain {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--glow-muted);
+  margin: var(--space-2) 0 var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-left: 2px solid var(--glow-trace);
+}
+
+/* Per-row state word (e.g. "sleeping", "ok", "degraded"). Slots
+   between the check name and its detail. Caps width so very long
+   detail strings don't crowd it out. */
+.rowState {
+  color: var(--glow-muted);
+  flex-shrink: 0;
+  text-transform: lowercase;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: var(--tracking-micro);
+}
