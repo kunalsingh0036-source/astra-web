@@ -2,6 +2,7 @@
 
 import {
   createContext,
+  Suspense,
   useCallback,
   useContext,
   useEffect,
@@ -9,6 +10,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { useSearchParams } from "next/navigation";
 import type { ChatEvent } from "@/lib/chatStream";
 import { startChatPoll, cancelTurn, pollTurn } from "@/lib/chatPoller";
 import { parseArtifact, type Artifact } from "@/lib/artifacts";
@@ -234,6 +236,32 @@ function clearPersisted() {
   }
 }
 
+/**
+ * Returns true when the current page URL has `?session=<id>` — i.e.
+ * the user navigated here by clicking a row on /sessions and
+ * explicitly wants THAT session's history, not whatever stale
+ * inFlight state localStorage happens to be holding.
+ *
+ * The hydrate, the resumeTurnIdRef init, and the resume effect ALL
+ * branch on this so they can't race with loadSession.
+ *
+ * Bug it fixes: clicking a session on /sessions opened /?session=<id>
+ * but the conversation never rendered — the hydrate showed a phantom
+ * "thinking…" indicator from saved.inFlight, the resume effect
+ * kicked off a poll for that stale turn id, and loadSession's
+ * setState got clobbered by the in-flight events landing later. The
+ * net effect was the user staring at an empty / thinking pane while
+ * the API had already returned the right turns.
+ */
+function urlHasSessionParam(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    return new URLSearchParams(window.location.search).has("session");
+  } catch {
+    return false;
+  }
+}
+
 export function ChatProvider({ children }: { children: React.ReactNode }) {
   // Hydrate from localStorage on first render so a page refresh
   // doesn't kill conversation context.
@@ -250,6 +278,14 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   //      partial response" behavior since we can't resume.
   //   C. No in-flight — normal restore.
   const [state, setState] = useState<ChatState>(() => {
+    // If the URL says "load this session", don't even look at
+    // saved.inFlight — the user's intent is clear and any phantom
+    // "still thinking" state from a stale localStorage entry would
+    // confuse the UI while loadSession's fetch is mid-flight.
+    // loadSession will set the real session state once it returns.
+    if (urlHasSessionParam()) {
+      return initial;
+    }
     const saved = loadPersisted();
     if (!saved) return initial;
     const history = saved.history || [];
@@ -323,8 +359,15 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   // Set on hydrate when there's a resumable in-flight turn. The
   // resume effect picks this up, calls pollTurn, and folds the
   // result into history. null means no resume needed.
+  //
+  // Suppressed when the URL has ?session=<id> — that's an explicit
+  // "load this session" intent, and racing it against a stale
+  // resume poll loses every time (the poll's events overwrite
+  // loadSession's history).
   const resumeTurnIdRef = useRef<number | null>(
-    typeof window !== "undefined" ? loadPersisted()?.inFlight?.turnId ?? null : null,
+    typeof window !== "undefined" && !urlHasSessionParam()
+      ? loadPersisted()?.inFlight?.turnId ?? null
+      : null,
   );
 
   // Recover session_id from localStorage on mount so the first
@@ -605,21 +648,9 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  // URL param: /?session=<id> triggers a session resume on mount.
-  // Clears the param after loading so refreshes don't re-resume on
-  // top of any subsequent state.
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const url = new URL(window.location.href);
-    const sid = url.searchParams.get("session");
-    if (!sid) return;
-    void loadSession(sid).then(() => {
-      // Strip the param without a navigation
-      url.searchParams.delete("session");
-      window.history.replaceState({}, "", url.toString());
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // URL param /?session=<id> triggers a session load — see
+  // <UrlSessionWatcher> below for the details + why it's an extra
+  // child component instead of an effect right here.
 
   // Resume on hydrate — the killer feature of polling architecture.
   //
@@ -644,6 +675,14 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   // to the same id chatPoller would have set, so the cancel button
   // hits /api/turns/<id>/cancel correctly.
   useEffect(() => {
+    // Belt-and-suspenders: even if resumeTurnIdRef was set, skip
+    // when the URL says "load a specific session". The hydrate
+    // already nulled this out in that case, but checking again
+    // costs nothing and makes the invariant explicit.
+    if (urlHasSessionParam()) {
+      resumeTurnIdRef.current = null;
+      return;
+    }
     const resumeTurnId = resumeTurnIdRef.current;
     if (!resumeTurnId) return;
     // Clear so a future state change can't accidentally re-trigger.
@@ -689,7 +728,65 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     [state, ask, cancel, reset, injectTurn, loadSession],
   );
 
-  return <ChatContext.Provider value={value}>{children}</ChatContext.Provider>;
+  return (
+    <ChatContext.Provider value={value}>
+      <Suspense fallback={null}>
+        <UrlSessionWatcher
+          sessionRef={sessionRef}
+          loadSession={loadSession}
+        />
+      </Suspense>
+      {children}
+    </ChatContext.Provider>
+  );
+}
+
+/**
+ * Watches the `?session=<id>` URL parameter and triggers loadSession
+ * when it changes. Lives as a separate child component (not an
+ * effect inside ChatProvider) for two reasons:
+ *
+ *   1. Next 16 requires `useSearchParams` callers to be inside a
+ *      Suspense boundary. Putting it on ChatProvider directly
+ *      broke `next build` on /_not-found prerender. A small
+ *      watcher child + a Suspense wrapper keeps the parent
+ *      provider Suspense-free.
+ *
+ *   2. ChatProvider mounts once at the root layout and persists
+ *      across client-side navigation. A mount-only effect inside
+ *      it would NEVER fire when the user clicks a session row
+ *      (Next.js Link routes within the same React tree). useSearch
+ *      Params is the supported API to react to URL changes —
+ *      that's why we use it here instead of reading window.location
+ *      manually.
+ *
+ * Idempotence: skips when sessionParam matches sessionRef.current,
+ * so a re-render or back-button shuffle doesn't re-fetch.
+ *
+ * After load: strips the `session` param via history.replaceState
+ * so refreshes don't keep replaying it.
+ */
+function UrlSessionWatcher({
+  sessionRef,
+  loadSession,
+}: {
+  sessionRef: React.MutableRefObject<string | null>;
+  loadSession: (sessionId: string) => Promise<void>;
+}) {
+  const searchParams = useSearchParams();
+  const sessionParam = searchParams?.get("session") ?? null;
+  useEffect(() => {
+    if (!sessionParam) return;
+    if (sessionParam === sessionRef.current) return;
+    void loadSession(sessionParam).then(() => {
+      if (typeof window !== "undefined") {
+        const url = new URL(window.location.href);
+        url.searchParams.delete("session");
+        window.history.replaceState({}, "", url.toString());
+      }
+    });
+  }, [sessionParam, loadSession, sessionRef]);
+  return null;
 }
 
 export function useChat() {
