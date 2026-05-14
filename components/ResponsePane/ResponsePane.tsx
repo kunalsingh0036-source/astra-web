@@ -258,6 +258,20 @@ export function ResponsePane() {
               )}
             </header>
             <p className={styles.prompt}>{turn.prompt}</p>
+            {turn.attachments && turn.attachments.length > 0 && (
+              <div className={styles.attachments}>
+                {turn.attachments.map((aid) => (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img
+                    key={aid}
+                    src={`/api/preview/${aid}`}
+                    alt="attachment"
+                    className={styles.attachmentThumb}
+                    loading="lazy"
+                  />
+                ))}
+              </div>
+            )}
             {turn.response && (
               <div className={styles.body}>
                 <MarkdownView text={turn.response} />

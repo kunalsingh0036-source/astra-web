@@ -689,3 +689,28 @@
     padding: var(--space-2) var(--space-2);
   }
 }
+
+/* ── Attachments rendered next to a history prompt ─────────
+   User-uploaded images (drag/drop/paste in InputLine) get
+   thumbnailed here. Square crop, modest size — they're context
+   for the prompt, not the centerpiece. Click opens the full
+   image in a new tab via /api/preview/<id>. */
+.attachments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: var(--space-2) 0 var(--space-3);
+}
+.attachmentThumb {
+  width: 96px;
+  height: 96px;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+  border: var(--border-hair);
+  cursor: zoom-in;
+  background: var(--abyss-0);
+  transition: transform var(--dur-small) var(--ease-out-soft);
+}
+.attachmentThumb:hover {
+  transform: translateY(-1px);
+}

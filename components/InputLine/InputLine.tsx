@@ -277,6 +277,11 @@ export function InputLine() {
     size: number;
     /** For images: base64 data URL for inline display + send. */
     dataUrl?: string;
+    /** For images: the raw File so handleSubmit can upload it
+     *  multipart. dataUrl is fine for in-browser preview but
+     *  uploading via dataUrl would force a base64 → bytes
+     *  round-trip; sending the File directly is leaner. */
+    file?: File;
     /** For non-image files: shown as a name chip only (no preview). */
     isImage: boolean;
     /** For folder uploads: the folder root name. Same string across
@@ -287,6 +292,11 @@ export function InputLine() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
+  /** Tracks an in-progress upload while we POST images to
+   *  /api/uploads. Disables the submit button so the user can't
+   *  fire two ask() calls in parallel and end up with a partial
+   *  attachment set. */
+  const [uploading, setUploading] = useState(false);
 
   // Auto-grow the textarea on every value change. We measure scrollHeight
   // and set explicit height so the field expands to fit content. CSS
@@ -405,6 +415,9 @@ export function InputLine() {
           mime: file.type || "application/octet-stream",
           size: file.size,
           dataUrl,
+          // Keep the original File ref for images so handleSubmit
+          // can upload it multipart without re-encoding the dataUrl.
+          file: isImage ? file : undefined,
           isImage,
           folder: folderName,
         });
@@ -621,7 +634,7 @@ export function InputLine() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isStreaming, hasOpenPane, pathname]);
 
-  function askOrNavigate(prompt: string) {
+  function askOrNavigate(prompt: string, attachments: string[] = []) {
     if (isHomeCommand(prompt)) {
       goHome();
       return;
@@ -735,25 +748,90 @@ export function InputLine() {
       ask(`Switched autonomy mode to ${mode.replace("_", " ")}.`);
       return;
     }
-    ask(prompt);
+    ask(prompt, attachments);
   }
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     // Allow submit even when text is empty IF there are attachments —
     // user can paste an image and ask "what is this?" without typing.
     if (!value.trim() && attachments.length === 0) return;
-    if (isStreaming) return;
-    // Build the prompt: typed text + attachment context. We attach
-    // a small descriptive header so the agent can see what was sent
-    // even before backend wires up image content blocks. Once the
-    // SSE backend supports image attachments, the dataUrl values move
-    // into proper content blocks instead.
+    if (isStreaming || uploading) return;
+
+    // Split attachments into images-to-upload vs non-image references.
+    // Images become real content blocks the agent can see. Non-image
+    // attachments (folders, other files) still surface as a textual
+    // header so the agent has context.
+    const imageAtts = attachments.filter((a) => a.isImage && a.file);
+    const nonImageAtts = attachments.filter(
+      (a) => !a.isImage || !a.file,
+    );
+
+    // Upload images first, gather their server-side IDs. Done IN
+    // PARALLEL because each upload is independent. If ANY upload
+    // fails, surface the error and bail before clearing the input —
+    // the user keeps their typed text + attachments to retry.
+    let uploadIds: string[] = [];
+    if (imageAtts.length > 0) {
+      setUploading(true);
+      try {
+        const results = await Promise.allSettled(
+          imageAtts.map(async (a) => {
+            const fd = new FormData();
+            fd.append("file", a.file as File, a.name);
+            const r = await fetch("/api/uploads", {
+              method: "POST",
+              body: fd,
+            });
+            if (!r.ok) {
+              const body = await r.text();
+              throw new Error(
+                `upload "${a.name}" failed: ${r.status} ${body.slice(0, 120)}`,
+              );
+            }
+            const j = (await r.json()) as { id?: string };
+            if (!j.id) throw new Error(`upload "${a.name}" returned no id`);
+            return j.id;
+          }),
+        );
+        const failures = results
+          .filter((r): r is PromiseRejectedResult => r.status === "rejected")
+          .map((r) => String(r.reason).slice(0, 200));
+        if (failures.length > 0) {
+          // Bail without clearing input so user can retry.
+          if (typeof window !== "undefined") {
+            window.alert(
+              `Upload failed for ${failures.length} of ${imageAtts.length} image(s):\n` +
+                failures.join("\n"),
+            );
+          }
+          setUploading(false);
+          return;
+        }
+        uploadIds = results.flatMap((r) =>
+          r.status === "fulfilled" ? [r.value] : [],
+        );
+      } catch (e) {
+        if (typeof window !== "undefined") {
+          window.alert(
+            `Upload failed: ${e instanceof Error ? e.message : String(e)}`,
+          );
+        }
+        setUploading(false);
+        return;
+      }
+      setUploading(false);
+    }
+
+    // Build the prompt text. Non-image attachments get a textual
+    // header (the agent has no vision tool for arbitrary files yet);
+    // image attachments don't need a header because they're real
+    // content blocks the model will see directly.
     let prompt = value.trim();
-    if (attachments.length > 0) {
+    if (nonImageAtts.length > 0) {
       const folderGroups = new Map<string, number>();
-      const loose: typeof attachments = [];
-      for (const a of attachments) {
+      const loose: typeof nonImageAtts = [];
+      for (const a of nonImageAtts) {
         if (a.folder) {
           folderGroups.set(a.folder, (folderGroups.get(a.folder) || 0) + 1);
         } else {
@@ -766,13 +844,17 @@ export function InputLine() {
       }
       for (const a of loose) {
         const sizeKb = (a.size / 1024).toFixed(1);
-        lines.push(
-          `${a.isImage ? "🖼" : "📎"}  ${a.name}  (${a.mime}, ${sizeKb} KB)`,
-        );
+        lines.push(`📎  ${a.name}  (${a.mime}, ${sizeKb} KB)`);
       }
       const header = `[attached]\n${lines.join("\n")}`;
       prompt = prompt ? `${header}\n\n${prompt}` : header;
     }
+    // If user only attached an image with no text, give the agent a
+    // gentle nudge so it doesn't sit there waiting for instruction.
+    if (!prompt && uploadIds.length > 0) {
+      prompt = "What do you see here?";
+    }
+
     setValue("");
     setAttachments([]);
     // Reset the textarea height after submit so the next input starts
@@ -781,7 +863,7 @@ export function InputLine() {
     requestAnimationFrame(() => {
       if (inputRef.current) inputRef.current.style.height = "auto";
     });
-    askOrNavigate(prompt);
+    askOrNavigate(prompt, uploadIds);
   }
 
   // Standard chat-input semantics on the textarea:

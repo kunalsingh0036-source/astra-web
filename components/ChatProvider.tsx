@@ -69,6 +69,9 @@ export interface Turn {
    *  the history row so the user sees WHY the turn failed without
    *  the in-flight pane staying open + duplicating the prompt. */
   errorMessage?: string;
+  /** Upload IDs the user attached (drag/drop screenshots). Render as
+   *  small thumbnails next to the prompt — `<img src="/api/preview/<id>" />`. */
+  attachments?: string[];
 }
 
 export interface ChatState {
@@ -102,7 +105,12 @@ export interface ChatState {
 }
 
 interface ChatContextValue extends ChatState {
-  ask: (prompt: string) => Promise<void>;
+  /**
+   * Send a prompt — optionally with image attachments (upload ids
+   * returned by POST /api/uploads). Each attachment id becomes an
+   * image content block on the user message Anthropic-side.
+   */
+  ask: (prompt: string, attachments?: string[]) => Promise<void>;
   cancel: () => void;
   reset: () => void;
   /** Inject a completed turn directly into history WITHOUT routing
@@ -453,9 +461,13 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     return () => clearTimeout(id);
   }, [state.isStreaming, state.lastEventAt]);
 
-  const ask = useCallback(async (prompt: string) => {
+  const ask = useCallback(
+    async (prompt: string, attachments?: string[]) => {
     const trimmed = prompt.trim();
     if (!trimmed) return;
+    const atts = (attachments || []).filter(
+      (a) => typeof a === "string" && a.length > 0,
+    );
 
     // Tear down any in-flight poll
     abortRef.current?.abort();
@@ -486,7 +498,9 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         prompt: trimmed,
         sessionId: sessionRef.current,
         signal: controller.signal,
-        onEvent: (event) => applyEvent(event, setState, sessionRef, trimmed),
+        attachments: atts.length > 0 ? atts : undefined,
+        onEvent: (event) =>
+          applyEvent(event, setState, sessionRef, trimmed, false, atts),
         onTurnId: (id) => {
           // Captured the moment POST /api/chat returns, BEFORE we
           // start polling — so the Cancel button is wired up even
@@ -806,6 +820,7 @@ function applyEvent(
   sessionRef: React.MutableRefObject<string | null>,
   currentPrompt: string,
   isResume: boolean = false,
+  currentAttachments: string[] = [],
 ) {
   // Bump lastEventAt on every event so the live status bar can detect
   // stalls (no event for N seconds while still streaming).
@@ -813,7 +828,14 @@ function applyEvent(
   setState((s) => {
     // The case-specific switch returns the new state; we mix in
     // lastEventAt at the end to avoid repeating it in every branch.
-    const updated = applyEventInner(event, s, sessionRef, currentPrompt, isResume);
+    const updated = applyEventInner(
+      event,
+      s,
+      sessionRef,
+      currentPrompt,
+      isResume,
+      currentAttachments,
+    );
     return { ...updated, lastEventAt: eventArrivedAt };
   });
 }
@@ -824,6 +846,7 @@ function applyEventInner(
   sessionRef: React.MutableRefObject<string | null>,
   currentPrompt: string,
   isResume: boolean,
+  currentAttachments: string[],
 ): ChatState {
   // The original applyEvent body, restructured to return the new state
   // instead of calling setState directly. The wrapper above adds
@@ -891,6 +914,8 @@ function applyEventInner(
         // why.
         completedWhileAway: isResume ? true : undefined,
         errorMessage: wasError ? humanizeError(s.error) : undefined,
+        attachments:
+          currentAttachments.length > 0 ? currentAttachments : undefined,
       };
       playChime("task");
       return {

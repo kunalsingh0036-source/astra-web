@@ -31,6 +31,12 @@ export interface StartPollOptions {
   signal?: AbortSignal;
   onEvent: (event: ChatEvent) => void;
   /**
+   * Upload IDs returned by POST /api/uploads. Each gets attached
+   * to the user message as an image content block by the lean
+   * runtime. Empty/undefined = pure text turn.
+   */
+  attachments?: string[];
+  /**
    * Fired ONCE, as soon as POST /api/chat returns the turn_id.
    * The consumer (ChatProvider) needs the id before the poll
    * resolves so the Cancel button can call /api/turns/[id]/cancel
@@ -91,6 +97,7 @@ export async function startChatPoll({
   signal,
   onEvent,
   onTurnId,
+  attachments,
   pollIntervalMs = DEFAULT_POLL_MS,
   maxPollDurationMs = DEFAULT_MAX_DURATION_MS,
 }: StartPollOptions): Promise<{ turnId: number | null }> {
@@ -103,6 +110,9 @@ export async function startChatPoll({
       body: JSON.stringify({
         prompt,
         ...(sessionId ? { session_id: sessionId } : {}),
+        ...(attachments && attachments.length > 0
+          ? { attachments }
+          : {}),
       }),
       signal,
     });

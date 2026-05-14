@@ -37,7 +37,11 @@ export async function POST(req: NextRequest) {
   const streamBase = streamUrl();
   const sharedSecret = process.env.ASTRA_SHARED_SECRET ?? "";
 
-  let body: { prompt?: unknown; session_id?: unknown };
+  let body: {
+    prompt?: unknown;
+    session_id?: unknown;
+    attachments?: unknown;
+  };
   try {
     body = (await req.json()) as typeof body;
   } catch {
@@ -49,6 +53,16 @@ export async function POST(req: NextRequest) {
     typeof body.session_id === "string" && body.session_id.length > 0
       ? body.session_id
       : null;
+  // Attachments are upload IDs returned by POST /api/uploads. Only
+  // accept strings here; anything else (number, object, array of
+  // arrays) is rejected silently — the agent treats missing
+  // attachments gracefully so we don't fail the turn over a bad
+  // entry.
+  const attachments: string[] = Array.isArray(body.attachments)
+    ? body.attachments.filter(
+        (a): a is string => typeof a === "string" && a.length > 0,
+      )
+    : [];
 
   if (!prompt.trim()) {
     return Response.json({ error: "prompt is empty" }, { status: 400 });
@@ -56,6 +70,7 @@ export async function POST(req: NextRequest) {
 
   const upstreamBody: Record<string, unknown> = { prompt };
   if (sessionId) upstreamBody.session_id = sessionId;
+  if (attachments.length > 0) upstreamBody.attachments = attachments;
 
   const upstreamHeaders: Record<string, string> = {
     "content-type": "application/json",
