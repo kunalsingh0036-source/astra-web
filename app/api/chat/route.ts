@@ -4,33 +4,31 @@ import { streamUrl } from "@/lib/agentUrls";
 /**
  * POST /api/chat
  *
- * Thin reverse-proxy that forwards the browser's request to astra-stream
- * and pipes the SSE response back unchanged. Two reasons to proxy:
+ * Enqueues a turn on the stream service and returns the turn_id.
+ * The browser then polls /api/turns/<id>/events for progress until
+ * the turn reaches a terminal state. No SSE in the path; no Vercel
+ * / Cloudflare / proxy duration cap matters. The agent runs
+ * server-side regardless of whether anyone's polling — durable in
+ * the `turns` + `turn_events` tables.
  *
- *   1. The browser never needs to know where astra-stream lives. We can
- *      move the stream service behind a Cloudflare Tunnel later with
- *      no client-side changes.
- *   2. Keeping it same-origin means we bypass CORS entirely and can
- *      layer auth in later without touching the Python side.
+ * Why proxy at all (vs. browser → stream service direct):
+ *   1. The browser never needs to know where the stream service
+ *      lives. We can move it behind another tunnel later with no
+ *      client-side changes.
+ *   2. Same-origin means CORS isn't a concern, and we layer auth
+ *      in middleware without touching the Python side.
+ *
+ * History: until 2026-05-20 this route also carried a USE_LEGACY_SSE
+ * env-var fallback that proxied to the stream service's /stream SSE
+ * endpoint. The SSE path was removed once polling had run >2 weeks
+ * in prod without regression — rollback is now `git revert`, not a
+ * runtime toggle.
  */
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
-
-// PHASE 2B — this route returns a turn_id in <100ms.
-//
-// The browser polls /api/turns/<id>/events for progress +
-// completion. No SSE in the path; no Vercel/Cloudflare/proxy
-// duration cap mattering. The agent runs server-side regardless
-// of whether anyone's polling — durable in turns + turn_events.
-//
-// maxDuration is intentionally low (10s). If it ever fires here,
-// the round-trip to /turns/start on the stream service has hung —
-// surface that as an error fast instead of letting Vercel kill it
-// at the 300s wall.
-//
-// USE_LEGACY_SSE=1 env var falls back to the previous SSE-proxy
-// path for rollback safety. Will be deleted after polling has run
-// a week without regressions.
+// /turns/start is supposed to return in <100ms. If maxDuration ever
+// fires here, the upstream call has hung — surface that as a 502 fast
+// instead of letting Vercel kill it at the 300s wall.
 export const maxDuration = 10;
 
 export async function POST(req: NextRequest) {
@@ -79,15 +77,6 @@ export async function POST(req: NextRequest) {
     upstreamHeaders["x-astra-secret"] = sharedSecret;
   }
 
-  // Legacy SSE fallback path. Set USE_LEGACY_SSE=1 to revert to
-  // the streaming model in case polling has an unforeseen issue.
-  if (process.env.USE_LEGACY_SSE === "1") {
-    return await proxyLegacyStream(streamBase, upstreamHeaders, upstreamBody);
-  }
-
-  // POLLING PATH — POST /turns/start on the stream service. Returns
-  // {turn_id, session_id, status}. Browser polls /api/turns/[id]/events
-  // for progress until terminal status.
   let upstream: Response;
   try {
     upstream = await fetch(`${streamBase}/turns/start`, {
@@ -95,9 +84,9 @@ export async function POST(req: NextRequest) {
       headers: upstreamHeaders,
       body: JSON.stringify(upstreamBody),
       cache: "no-store",
-      // Don't use Vercel's maxDuration as the only fence — be
-      // explicit about how long we'll wait for /turns/start to
-      // respond. It's supposed to return in <100ms.
+      // Be explicit about how long we'll wait for /turns/start to
+      // respond. It's supposed to return in <100ms. Don't lean on
+      // Vercel's maxDuration as the only fence.
       signal: AbortSignal.timeout(8000),
     });
   } catch (e) {
@@ -134,48 +123,5 @@ export async function POST(req: NextRequest) {
     turn_id: result.turn_id,
     session_id: result.session_id ?? null,
     status: result.status ?? "running",
-  });
-}
-
-/**
- * Legacy SSE-proxy path, kept for env-var fallback (USE_LEGACY_SSE=1).
- * Will be deleted after polling has run a week without regressions.
- */
-async function proxyLegacyStream(
-  streamBase: string,
-  headers: Record<string, string>,
-  body: Record<string, unknown>,
-): Promise<Response> {
-  let upstream: Response;
-  try {
-    upstream = await fetch(`${streamBase}/stream`, {
-      method: "POST",
-      headers,
-      body: JSON.stringify(body),
-      cache: "no-store",
-    });
-  } catch (e) {
-    const message = e instanceof Error ? e.message : "upstream unreachable";
-    return new Response(
-      `event: error\ndata: ${JSON.stringify({ message })}\n\n`,
-      {
-        status: 502,
-        headers: { "content-type": "text/event-stream" },
-      },
-    );
-  }
-
-  if (!upstream.body) {
-    return new Response("no stream body", { status: 502 });
-  }
-
-  return new Response(upstream.body, {
-    status: upstream.status,
-    headers: {
-      "content-type": "text/event-stream",
-      "cache-control": "no-cache, no-transform",
-      connection: "keep-alive",
-      "x-accel-buffering": "no",
-    },
   });
 }

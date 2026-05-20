@@ -11,8 +11,12 @@ import {
   useState,
 } from "react";
 import { useSearchParams } from "next/navigation";
-import type { ChatEvent } from "@/lib/chatStream";
-import { startChatPoll, cancelTurn, pollTurn } from "@/lib/chatPoller";
+import {
+  startChatPoll,
+  cancelTurn,
+  pollTurn,
+  type ChatEvent,
+} from "@/lib/chatPoller";
 import { parseArtifact, type Artifact } from "@/lib/artifacts";
 import { playChime } from "@/lib/chimes";
 import type { AgentName } from "@/lib/types";

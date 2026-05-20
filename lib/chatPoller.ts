@@ -1,19 +1,18 @@
 /**
- * Chat poller — Phase 2b consumer.
+ * Chat poller — the chat consumer.
  *
- * Replaces lib/chatStream.ts's SSE consumer with a polling loop.
- * Why: streaming made us subject to every duration cap in the path
- * (Vercel maxDuration, Cloudflare Tunnel, intermediate proxies).
- * Long agent turns routinely got cut off mid-flight. Polling is
- * immune — each poll request is short, finishes fast, the agent
- * runs server-side regardless of whether the browser is currently
- * polling.
+ * Replaced an earlier SSE-streaming consumer in 2026-05-04 (Phase 2b)
+ * and is now the only path. Why polling over streaming: streaming
+ * made us subject to every duration cap in the path (Vercel
+ * maxDuration, Cloudflare Tunnel, intermediate proxies). Long agent
+ * turns routinely got cut off mid-flight. Polling is immune — each
+ * poll request is short, finishes fast, the agent runs server-side
+ * regardless of whether the browser is currently polling.
  *
  * Flow:
  *   1. POST /api/chat with the prompt → returns { turn_id }
  *   2. Poll /api/turns/<id>/events?after=<lastOrd> every ~500ms
  *   3. For each new event in the response: emit it to the consumer
- *      (same ChatEvent shape the old SSE consumer used)
  *   4. When the response reports `terminal: true`, stop polling
  *      and emit a synthetic done event
  *
@@ -23,7 +22,28 @@
  *     in-flight asyncio task — saves API tokens for unwanted runs
  */
 
-import type { ChatEvent } from "./chatStream";
+/**
+ * The shape of an event as the chat consumer wants to receive it.
+ * Used to live in lib/chatStream.ts alongside the SSE parser; moved
+ * here when the SSE escape hatch was retired. Names and field shapes
+ * are stable — translateEvent() at the bottom of this file
+ * normalizes events stored by the stream service into this shape.
+ */
+export type ChatEvent =
+  | { type: "session"; session_id: string }
+  | { type: "thought"; text: string }
+  | { type: "tool_call"; id: string; name: string; agent: string | null }
+  | { type: "tool_result"; id: string; preview: string; is_error: boolean }
+  | { type: "text_delta"; content: string }
+  | { type: "artifact"; kind: string; title: string | null; content: unknown }
+  | {
+      type: "done";
+      duration_ms: number;
+      cost_usd?: number;
+      input_tokens?: number;
+      output_tokens?: number;
+    }
+  | { type: "error"; message: string };
 
 export interface StartPollOptions {
   prompt: string;
