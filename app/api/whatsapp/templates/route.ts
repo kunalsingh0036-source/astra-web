@@ -1,4 +1,4 @@
-import { whatsappUrl } from "@/lib/agentUrls";
+import { whatsappUrl, meshHeaders } from "@/lib/agentUrls";
 
 /**
  * GET /api/whatsapp/templates
@@ -15,7 +15,7 @@ export async function GET(req: Request) {
   const includeAll = url.searchParams.get("include_all") === "true";
   const waUrl = whatsappUrl();
   try {
-    const up = await fetch(`${waUrl}/api/v1/templates/`, { cache: "no-store" });
+    const up = await fetch(`${waUrl}/api/v1/templates/`, { cache: "no-store", headers: meshHeaders() });
     if (!up.ok) {
       return Response.json({ error: `gateway ${up.status}` }, { status: up.status });
     }

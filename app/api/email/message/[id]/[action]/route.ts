@@ -1,5 +1,5 @@
 import type { NextRequest } from "next/server";
-import { emailUrl } from "@/lib/agentUrls";
+import { emailUrl, meshHeaders } from "@/lib/agentUrls";
 
 /**
  * POST /api/email/message/{id}/{action}
@@ -34,6 +34,7 @@ export async function POST(
     const up = await fetch(`${base}/api/v1/messages/${id}/${action}${qs}`, {
       method: "POST",
       cache: "no-store",
+      headers: meshHeaders(),
     });
     const body = await up.text();
     return new Response(body, {

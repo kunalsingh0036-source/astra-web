@@ -1,5 +1,5 @@
 import type { NextRequest } from "next/server";
-import { emailUrl } from "@/lib/agentUrls";
+import { emailUrl, meshHeaders } from "@/lib/agentUrls";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -86,8 +86,8 @@ export async function GET(req: NextRequest) {
   try {
     const base = emailUrl();
     const [inRes, outRes] = await Promise.all([
-      fetch(`${base}/api/v1/messages/?direction=inbound&limit=200`, { cache: "no-store" }),
-      fetch(`${base}/api/v1/messages/?direction=outbound&limit=200`, { cache: "no-store" }),
+      fetch(`${base}/api/v1/messages/?direction=inbound&limit=200`, { cache: "no-store", headers: meshHeaders() }),
+      fetch(`${base}/api/v1/messages/?direction=outbound&limit=200`, { cache: "no-store", headers: meshHeaders() }),
     ]);
     if (!inRes.ok || !outRes.ok) {
       return Response.json({ error: "email-agent upstream" }, { status: 502 });

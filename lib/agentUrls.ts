@@ -50,6 +50,18 @@ export function streamUrl(): string {
   return (fromEnv || STREAM_DEFAULT).replace(/\/+$/, "");
 }
 
+/**
+ * Headers every server-side fetch to a fleet agent must carry.
+ * The agents (email, whatsapp, stream) verify `x-astra-secret`
+ * against their AGENT_SHARED_SECRET / STREAM_SHARED_SECRET and
+ * FAIL CLOSED — an upstream call without this header is a 401.
+ * Centralized here so a new route can't forget it; spread into
+ * the fetch's headers object.
+ */
+export function meshHeaders(): Record<string, string> {
+  return { "x-astra-secret": process.env.ASTRA_SHARED_SECRET ?? "" };
+}
+
 /** email-agent (port 8005 locally; Railway-deployed, custom domain). */
 export function emailUrl(): string {
   const fromEnv = (process.env.EMAIL_URL || "").trim();

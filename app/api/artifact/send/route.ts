@@ -1,5 +1,5 @@
 import type { NextRequest } from "next/server";
-import { emailUrl, whatsappUrl } from "@/lib/agentUrls";
+import { emailUrl, meshHeaders, whatsappUrl } from "@/lib/agentUrls";
 
 /**
  * POST /api/artifact/send
@@ -61,7 +61,7 @@ export async function POST(req: NextRequest) {
 
       const up = await fetch(`${base}/api/v1/messages/send`, {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: { "content-type": "application/json", ...meshHeaders() },
         body: JSON.stringify({
           to: toList,
           cc: ccList,
@@ -103,7 +103,7 @@ export async function POST(req: NextRequest) {
     try {
       const up = await fetch(`${waUrl}/api/v1/send`, {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: { "content-type": "application/json", ...meshHeaders() },
         body: JSON.stringify(waBody),
         cache: "no-store",
       });
