@@ -37,6 +37,12 @@ export type ChatEvent =
   | { type: "text_delta"; content: string }
   | { type: "artifact"; kind: string; title: string | null; content: unknown }
   | {
+      type: "approval_request";
+      id: number;
+      tool_name: string;
+      reason: string;
+    }
+  | {
       type: "done";
       duration_ms: number;
       cost_usd?: number;
@@ -356,6 +362,13 @@ function translateEvent(ev: PollEvent): ChatEvent | null {
       };
     case "text_delta":
       return { type: "text_delta", content: String(p.content ?? "") };
+    case "approval_request":
+      return {
+        type: "approval_request",
+        id: Number(p.id ?? 0),
+        tool_name: String(p.tool_name ?? ""),
+        reason: String(p.reason ?? ""),
+      };
     case "artifact":
       return {
         type: "artifact",

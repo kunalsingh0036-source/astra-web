@@ -131,6 +131,7 @@ export function ResponsePane() {
     lastDurationMs,
     reset,
     artifacts,
+    approvals,
     thoughts,
     history,
     tools,
@@ -366,6 +367,14 @@ export function ResponsePane() {
           {artifacts.map((a, i) => (
             <ArtifactView key={`${a.kind}-${i}`} artifact={a} />
           ))}
+
+          {approvals.length > 0 && (
+            <div className={styles.approvals}>
+              {approvals.map((ap) => (
+                <ApprovalChip key={ap.id} approval={ap} />
+              ))}
+            </div>
+          )}
         </article>
       )}
 
@@ -375,5 +384,51 @@ export function ResponsePane() {
         </button>
       )}
     </section>
+  );
+}
+
+
+/** Inline yes/no for an approval requested mid-turn. Resolving here
+ *  hits the same /api/approvals path as the /approvals page; after
+ *  approving, re-ask Astra to run the action (one-shot grant). */
+function ApprovalChip({
+  approval,
+}: {
+  approval: { id: number; tool_name: string; reason: string };
+}) {
+  const [state, setState] = useState<"pending" | "approved" | "denied" | "error">(
+    "pending",
+  );
+  async function resolve(decision: "approved" | "denied", standing = false) {
+    try {
+      const r = await fetch(`/api/approvals/${approval.id}/resolve`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ decision, standing }),
+      });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      setState(decision);
+    } catch {
+      setState("error");
+    }
+  }
+  if (state === "approved")
+    return (
+      <p className={styles.approvalResolved}>
+        ✓ approved #{approval.id} — ask astra to run it again
+      </p>
+    );
+  if (state === "denied")
+    return <p className={styles.approvalResolved}>✕ denied #{approval.id}</p>;
+  return (
+    <div className={styles.approvalChip}>
+      <span className={styles.approvalLabel}>
+        approval #{approval.id} · {approval.tool_name}
+      </span>
+      <button onClick={() => void resolve("approved")}>approve</button>
+      <button onClick={() => void resolve("approved", true)}>always</button>
+      <button onClick={() => void resolve("denied")}>deny</button>
+      {state === "error" && <span className={styles.approvalErr}>failed — see /approvals</span>}
+    </div>
   );
 }

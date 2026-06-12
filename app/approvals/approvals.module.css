@@ -1,0 +1,82 @@
+.page {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: var(--space-16) var(--space-8) var(--space-16);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+}
+
+.head { display: flex; flex-direction: column; gap: var(--space-3); }
+.head h1 {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 400;
+  font-size: clamp(48px, 7vw, 84px);
+  line-height: 0.98;
+  letter-spacing: -0.02em;
+  color: var(--glow-primary);
+  margin: 0;
+}
+.sub {
+  font-family: var(--font-mono);
+  font-size: var(--text-label);
+  letter-spacing: var(--tracking-micro);
+  color: var(--glow-muted);
+}
+
+.error { color: var(--alarm); font-family: var(--font-mono); font-size: var(--text-label); }
+.empty {
+  font-family: var(--font-display);
+  font-style: italic;
+  color: var(--glow-muted);
+  font-size: var(--text-body-lg, 18px);
+}
+
+.list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-6); }
+.item {
+  border: var(--border-hair);
+  border-radius: var(--radius-md, 8px);
+  padding: var(--space-5) var(--space-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  background: color-mix(in srgb, var(--abyss-1, #0b1016) 60%, transparent);
+}
+.meta { display: flex; gap: var(--space-3); align-items: baseline; font-family: var(--font-mono); font-size: var(--text-label); }
+.tool { color: var(--glow-primary); font-weight: 600; }
+.id { color: var(--glow-whisper); }
+.when { color: var(--glow-whisper); margin-left: auto; }
+.input {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--glow-body);
+  background: var(--abyss-0, #05080c);
+  border-radius: var(--radius-sm, 4px);
+  padding: var(--space-3);
+  overflow-x: auto;
+  max-height: 180px;
+  margin: 0;
+}
+.reason { font-family: var(--font-mono); font-size: var(--text-label); color: var(--glow-muted); margin: 0; }
+
+.actions { display: flex; gap: var(--space-3); flex-wrap: wrap; }
+.actions button {
+  font-family: var(--font-mono);
+  font-size: var(--text-label);
+  letter-spacing: var(--tracking-micro);
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-sm, 4px);
+  border: var(--border-hair);
+  background: transparent;
+  cursor: pointer;
+  transition: all var(--dur-small) var(--ease-out-soft);
+}
+.actions button:disabled { opacity: 0.4; cursor: wait; }
+.approve { color: var(--glow-primary); }
+.approve:hover:not(:disabled) { background: color-mix(in srgb, var(--glow-primary) 12%, transparent); }
+.always { color: var(--glow-body); }
+.always:hover:not(:disabled) { background: color-mix(in srgb, var(--glow-body) 10%, transparent); }
+.deny { color: var(--alarm); }
+.deny:hover:not(:disabled) { background: color-mix(in srgb, var(--alarm) 12%, transparent); }

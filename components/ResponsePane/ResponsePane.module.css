@@ -714,3 +714,22 @@
 .attachmentThumb:hover {
   transform: translateY(-1px);
 }
+
+/* ── Approval chips — autonomy gate asking mid-turn ───────── */
+.approvals { display: flex; flex-direction: column; gap: var(--space-2); margin-top: var(--space-3); }
+.approvalChip {
+  display: flex; align-items: center; gap: var(--space-3);
+  border: 1px solid color-mix(in srgb, var(--glow-primary) 35%, transparent);
+  border-radius: var(--radius-sm, 4px);
+  padding: var(--space-2) var(--space-3);
+  font-family: var(--font-mono); font-size: var(--text-label);
+}
+.approvalLabel { color: var(--glow-primary); margin-right: auto; }
+.approvalChip button {
+  background: transparent; border: var(--border-hair); border-radius: var(--radius-sm, 4px);
+  color: var(--glow-body); font-family: var(--font-mono); font-size: var(--text-label);
+  padding: 2px var(--space-3); cursor: pointer;
+}
+.approvalChip button:hover { color: var(--glow-primary); }
+.approvalResolved { font-family: var(--font-mono); font-size: var(--text-label); color: var(--glow-muted); }
+.approvalErr { color: var(--alarm); }

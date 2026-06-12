@@ -78,6 +78,12 @@ export interface Turn {
   attachments?: string[];
 }
 
+export interface PendingApproval {
+  id: number;
+  tool_name: string;
+  reason: string;
+}
+
 export interface ChatState {
   /** True while a stream is open. */
   isStreaming: boolean;
@@ -91,6 +97,8 @@ export interface ChatState {
   tools: ToolActivity[];
   /** Structured artifacts emitted during the turn. */
   artifacts: Artifact[];
+  /** Approvals requested during the in-flight turn. */
+  approvals: PendingApproval[];
   /** Error message if the stream failed. */
   error: string | null;
   /** Duration of the last completed turn. */
@@ -139,6 +147,7 @@ const initial: ChatState = {
   thoughts: [],
   tools: [],
   artifacts: [],
+  approvals: [],
   error: null,
   lastDurationMs: null,
   lastCostUsd: null,
@@ -492,6 +501,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       thoughts: [],
       tools: [],
       artifacts: [],
+        approvals: [],
       error: null,
       turnStartedAt: now,
       lastEventAt: now,
@@ -571,6 +581,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         thoughts: [],
         tools: [],
         artifacts: [],
+        approvals: [],
         error: null,
         isStreaming: false,
         history: [
@@ -580,6 +591,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
             prompt,
             response,
             artifacts: [],
+        approvals: [],
             toolCount: 0,
             durationMs: 0,
             costUsd: 0,
@@ -644,6 +656,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
           prompt: t.prompt,
           response: t.response || "(no response — interrupted or failed)",
           artifacts: [],
+        approvals: [],
           toolCount: t.tool_count || 0,
           durationMs: t.duration_ms,
           costUsd: null,
@@ -892,6 +905,14 @@ function applyEventInner(
       const parsed = parseArtifact(event.content);
       if (!parsed) return s;
       return { ...s, artifacts: [...s.artifacts, parsed] };
+    }
+    case "approval_request": {
+      const pending: PendingApproval = {
+        id: event.id,
+        tool_name: event.tool_name,
+        reason: event.reason,
+      };
+      return { ...s, approvals: [...s.approvals, pending] };
     }
     case "done": {
       // If an `error` event fired earlier in this turn, s.error is
