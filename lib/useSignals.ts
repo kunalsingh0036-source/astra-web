@@ -94,6 +94,17 @@ export function useSignals() {
   useEffect(() => {
     // Re-derive whenever either source updates. Pure transform of the
     // latest snapshots + the chime side-effect — no fetching here.
+    //
+    // Wait for `extras` before deriving. The old hook fetched all five
+    // endpoints in ONE Promise.all, so signals always derived atomically
+    // from a complete snapshot. With the split polls, deriving while
+    // extras is still null (cold-mount window) would (a) hide the
+    // approval/email/finance/spend whispers for ~1–5s and (b) chime
+    // twice — once when fleet alarms load, again when extras alarms do.
+    // Gating on extras alone (NOT `state && extras`) restores the atomic
+    // feel without suppressing those whispers when /api/state is down —
+    // fleet-down stays separately guarded by `state?.agents` below.
+    if (!extras) return;
     {
       try {
         const cost = extras?.cost ?? null;

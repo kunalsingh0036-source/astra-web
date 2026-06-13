@@ -68,6 +68,13 @@ function bindVisibility(): void {
 
 function startTimer<T>(e: Entry<T>): void {
   if (e.timer) return;
+  // INTENTIONAL: don't start an interval while the tab is hidden — that
+  // is the whole point of the visibility-gating. A subscriber that
+  // mounts hidden still gets its one initial runFetch (called alongside
+  // this in the effect), and the bindVisibility 'visible' handler does
+  // the catch-up fetch + starts the interval the instant the tab is
+  // looked at. Do NOT remove this guard to "always poll" — that
+  // re-introduces the background-polling waste this primitive removes.
   if (typeof document !== "undefined" && document.hidden) return;
   e.timer = setInterval(() => void runFetch(e), e.intervalMs);
 }
