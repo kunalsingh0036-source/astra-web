@@ -3,44 +3,61 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 /**
- * Browser text-to-speech (window.speechSynthesis). Zero-cost,
- * offline, instant — the right first cut for "let me HEAR Astra"
- * (hands-free at the desk, mid-task). If we ever want it to sound
- * like Astra specifically, swap the body for an API TTS call behind
- * the same speak()/stop() surface; nothing else changes.
+ * Astra's voice. Primary path: POST /api/tts → ElevenLabs (River),
+ * played through an <audio> element — a real, consistent voice, the
+ * same one Astra uses on WhatsApp voice replies. Fallback path: the
+ * browser's window.speechSynthesis, so if the TTS service is down or
+ * unconfigured the button still works (robotic but never silent).
  *
- * Strips markdown so the voice doesn't read "asterisk asterisk" and
- * code fences aloud.
+ * speak() toggles: tap to play, tap again to stop.
  */
 export function useSpeech() {
   const [supported, setSupported] = useState(false);
   const [speaking, setSpeaking] = useState(false);
-  const utterRef = useRef<SpeechSynthesisUtterance | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
-    setSupported(
-      typeof window !== "undefined" && "speechSynthesis" in window,
-    );
-    // Cancel any in-flight speech if the component unmounts.
-    return () => {
-      if (typeof window !== "undefined" && "speechSynthesis" in window) {
-        window.speechSynthesis.cancel();
-      }
-    };
+    // Either path makes us "supported": real TTS is server-side
+    // (always worth trying), browser TTS is the floor.
+    setSupported(typeof window !== "undefined");
+    return () => stopAll();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  function stopAll() {
+    if (typeof window === "undefined") return;
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.src = "";
+      audioRef.current = null;
+    }
+    if ("speechSynthesis" in window) window.speechSynthesis.cancel();
+  }
+
   const stop = useCallback(() => {
-    if (!supported) return;
-    window.speechSynthesis.cancel();
+    stopAll();
     setSpeaking(false);
-  }, [supported]);
+  }, []);
+
+  const _browserFallback = useCallback((clean: string) => {
+    if (!("speechSynthesis" in window)) {
+      setSpeaking(false);
+      return;
+    }
+    const u = new SpeechSynthesisUtterance(clean);
+    u.rate = 1.05;
+    u.onend = () => setSpeaking(false);
+    u.onerror = () => setSpeaking(false);
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(u);
+  }, []);
 
   const speak = useCallback(
-    (text: string) => {
+    async (text: string) => {
       if (!supported || !text.trim()) return;
-      // Toggle: if already speaking, stop.
-      if (window.speechSynthesis.speaking) {
-        window.speechSynthesis.cancel();
+      // Toggle off if already playing.
+      if (speaking) {
+        stopAll();
         setSpeaking(false);
         return;
       }
@@ -51,16 +68,38 @@ export function useSpeech() {
         .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
         .replace(/\n{2,}/g, ". ")
         .trim();
-      const u = new SpeechSynthesisUtterance(clean);
-      u.rate = 1.05;
-      u.onend = () => setSpeaking(false);
-      u.onerror = () => setSpeaking(false);
-      utterRef.current = u;
-      window.speechSynthesis.cancel();
-      window.speechSynthesis.speak(u);
+
       setSpeaking(true);
+      // Primary: Astra's real voice via /api/tts.
+      try {
+        const r = await fetch("/api/tts", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ text: clean }),
+        });
+        if (r.ok && r.headers.get("content-type")?.includes("audio")) {
+          const blob = await r.blob();
+          const url = URL.createObjectURL(blob);
+          const audio = new Audio(url);
+          audioRef.current = audio;
+          audio.onended = () => {
+            URL.revokeObjectURL(url);
+            setSpeaking(false);
+          };
+          audio.onerror = () => {
+            URL.revokeObjectURL(url);
+            _browserFallback(clean); // last resort
+          };
+          await audio.play();
+          return;
+        }
+        // Non-audio response (503 unconfigured / 502) → fallback.
+        _browserFallback(clean);
+      } catch {
+        _browserFallback(clean);
+      }
     },
-    [supported],
+    [supported, speaking, _browserFallback],
   );
 
   return { supported, speaking, speak, stop };
