@@ -523,7 +523,10 @@ export function InputLine() {
     listening,
     toggle: toggleDictation,
     stop: stopDictation,
-  } = useDictation({ onInterim, onFinal });
+    // en-IN, not the en-US default — Kunal is an Indian-English
+    // speaker; en-US mis-transcribes Indian names, places, and the
+    // business vocabulary (HelmTech, Apex, GeM, FHRAI) constantly.
+  } = useDictation({ onInterim, onFinal, lang: "en-IN" });
 
   function beginDictation() {
     if (!voiceSupported || isStreaming) return;
@@ -723,6 +726,12 @@ export function InputLine() {
     // problem from the ⌘K palette UX bug.
     const mode = matchModeCommand(prompt);
     if (mode) {
+      // POST /api/autonomy directly, then show the confirmation via
+      // injectTurn — a LOCAL history entry with NO agent round-trip.
+      // The old code called ask(...) here, which fired a full LLM turn
+      // (~2-3s + tokens) just to echo a string we already know. The
+      // outcome is reflected from the real response so a failed switch
+      // says so instead of falsely confirming.
       void fetch("/api/autonomy", {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -730,22 +739,23 @@ export function InputLine() {
       })
         .then((r) => r.json().catch(() => ({})))
         .then((body: { mode?: string; error?: string }) => {
-          // Surface the change as if the agent had said it — we cheat
-          // through the chat provider's local state by sending a tiny
-          // synthetic prompt that the agent will treat as a confirmation
-          // request. Cleaner: flash a toast. Simplest right now: just
-          // log it so the user sees something happened.
-          if (body.mode) {
-            // eslint-disable-next-line no-console
-            console.info("[autonomy] switched to", body.mode);
-          } else if (body.error) {
-            console.warn("[autonomy] switch failed:", body.error);
-          }
+          injectTurn({
+            prompt,
+            response: body.mode
+              ? `Autonomy mode → **${body.mode.replace("_", " ")}**.`
+              : `Couldn't switch mode${
+                  body.error ? `: ${body.error}` : ""
+                }.`,
+          });
         })
-        .catch((e) => console.warn("[autonomy] switch failed:", e));
-      // Drop a confirmation note via the chat reset/lastPrompt path
-      // so the user sees acknowledgement on screen.
-      ask(`Switched autonomy mode to ${mode.replace("_", " ")}.`);
+        .catch((e) =>
+          injectTurn({
+            prompt,
+            response: `Couldn't reach the autonomy endpoint (${String(
+              e,
+            ).slice(0, 80)}).`,
+          }),
+        );
       return;
     }
     ask(prompt, attachments);
@@ -981,6 +991,25 @@ export function InputLine() {
             title="attach files · right-click for folder"
           >
             <span className={styles.attachIcon}>+</span>
+          </button>
+        )}
+
+        {/* Stop button — visible only while streaming, in the attach
+            button's slot. Cancel was Esc-only, so on a phone (no Esc
+            key) there was NO way to stop a runaway turn. This is the
+            tappable equivalent. */}
+        {isStreaming && (
+          <button
+            type="button"
+            className={styles.stopBtn}
+            onClick={(e) => {
+              e.preventDefault();
+              cancel();
+            }}
+            aria-label="Stop the current turn"
+            title="stop"
+          >
+            <span className={styles.stopIcon} />
           </button>
         )}
 

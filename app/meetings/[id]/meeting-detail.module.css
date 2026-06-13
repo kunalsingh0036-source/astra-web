@@ -49,11 +49,11 @@
 .dot { color: var(--glow-whisper); }
 
 .err {
-  color: #d88;
+  color: var(--alarm);
   font-family: var(--font-mono);
   font-size: var(--text-label);
   padding: var(--space-3);
-  border-left: 2px solid #d88;
+  border-left: 2px solid var(--alarm);
   background: rgba(216,136,136,0.08);
   border-radius: 2px;
 }

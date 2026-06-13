@@ -45,11 +45,21 @@ const SUGGESTED: ActionSeed[] = [];
 const ACTIONS: ActionSeed[] = [
   { title: "Canvas", meta: "home · the fleet at a glance", route: "/" },
   { title: "Today", meta: "dashboard · cost · agents · inbox", route: "/today" },
+  // Approvals first among the work surfaces — it's the trust gate
+  // that BLOCKS Astra from acting, and was previously reachable only
+  // by typing the URL (audit 2026-06-13).
+  { title: "Approvals", meta: "actions waiting on your yes/no", route: "/approvals" },
+  { title: "Email", meta: "triage · unanswered · staged drafts", route: "/email" },
+  { title: "Tonight", meta: "evening catch-up · training review", route: "/tonight" },
   { title: "Tasks", meta: "to-do · what I'm tracking", route: "/tasks" },
+  { title: "Sessions", meta: "past conversations", route: "/sessions" },
   { title: "Briefing", meta: "scheduler · most recent morning briefing", route: "/briefing" },
+  { title: "Meetings", meta: "transcripts · summaries · action items", route: "/meetings" },
+  { title: "Research", meta: "daily intel briefings", route: "/research" },
   { title: "Cost", meta: "spend · 30-day sparkline · model split", route: "/cost" },
   { title: "Audit", meta: "trust trail · every tool decision", route: "/audit" },
   { title: "Memory", meta: "long-term · semantic + keyword", route: "/memory" },
+  { title: "Settings", meta: "autonomy · notifications · shares", route: "/settings" },
 ];
 
 const AUTONOMY_MODES = [

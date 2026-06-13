@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import styles from "./AmbientSignals.module.css";
 import { useSignals } from "@/lib/useSignals";
 import { useMode } from "@/components/ModeProvider";
@@ -18,14 +19,21 @@ export function AmbientSignals() {
 
   return (
     <div className={styles.stream} aria-live="polite">
-      {signals.map((s) => (
-        <p
-          key={s.id}
-          className={`${styles.signal} ${s.alarm ? styles.alarm : ""}`}
-        >
-          {s.text}
-        </p>
-      ))}
+      {signals.map((s) => {
+        const cls = `${styles.signal} ${s.alarm ? styles.alarm : ""}`;
+        // A signal with a route becomes a tap-target straight to the
+        // thing it's about (e.g. the approvals queue). Without one it
+        // stays a passive whisper.
+        return s.route ? (
+          <Link key={s.id} href={s.route} className={cls}>
+            {s.text}
+          </Link>
+        ) : (
+          <p key={s.id} className={cls}>
+            {s.text}
+          </p>
+        );
+      })}
     </div>
   );
 }

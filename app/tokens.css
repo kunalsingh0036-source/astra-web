@@ -30,6 +30,11 @@
   --glow-whisper: rgba(255, 255, 255, 0.22);  /* Dividers, idle agents */
   --glow-trace: rgba(255, 255, 255, 0.08);    /* Ambient hints, grid lines */
   --glow-void: rgba(255, 255, 255, 0.02);     /* Almost invisible, but present */
+  /* --edge: hairline border on cards/tags. Was referenced in 7
+     page modules but NEVER defined, so those borders silently
+     rendered as the CSS initial (transparent/invalid). Alias of
+     --glow-trace, the canonical hairline. */
+  --edge: var(--glow-trace);
 
   /* ─── Alarm ───────────────────────────────────────────────── */
   /* Used exactly once: when something is wrong. Never decorative. */

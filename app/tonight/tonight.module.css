@@ -117,12 +117,12 @@
 }
 
 .err {
-  color: #d88;
+  color: var(--alarm);
   font-family: var(--font-mono);
   font-size: var(--text-label);
   padding: var(--space-3) var(--space-4);
   background: rgba(216, 136, 136, 0.08);
-  border-left: 2px solid #d88;
+  border-left: 2px solid var(--alarm);
   border-radius: 2px;
 }
 

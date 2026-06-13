@@ -55,11 +55,11 @@
   border-radius: var(--radius-card);
 }
 .err {
-  color: #d88;
+  color: var(--alarm);
   font-family: var(--font-mono);
   font-size: var(--text-label);
   padding: var(--space-3);
-  border-left: 2px solid #d88;
+  border-left: 2px solid var(--alarm);
   background: rgba(216,136,136,0.08);
   border-radius: 2px;
 }
@@ -117,7 +117,7 @@
 .state_transcribed,
 .state_summarizing { color: var(--glow-primary); border-color: var(--glow-primary); }
 .state_ready { color: #8c8; border-color: #8c8; }
-.state_error { color: #d88; border-color: #d88; }
+.state_error { color: var(--alarm); border-color: var(--alarm); }
 
 .meta {
   display: flex;
@@ -135,7 +135,7 @@
   font-size: var(--text-label);
 }
 .cardErr {
-  color: #d88;
+  color: var(--alarm);
   font-family: var(--font-mono);
   font-size: var(--text-label);
 }

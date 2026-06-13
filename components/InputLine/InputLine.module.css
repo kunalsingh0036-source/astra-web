@@ -290,6 +290,35 @@
 .attachBtn:hover {
   border-color: var(--glow-muted);
 }
+/* Stop button — same footprint as attach, alarm-tinted, shown only
+   while a turn streams. Gives phones a tappable cancel (Esc-only
+   before). */
+.stopBtn {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--alarm-glow);
+  border-radius: var(--radius-full);
+  background: transparent;
+  cursor: pointer;
+  flex-shrink: 0;
+  margin-right: var(--space-3);
+  transition: all var(--dur-small) var(--ease-out-soft);
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+.stopBtn:hover {
+  border-color: var(--alarm);
+  background: var(--alarm-glow);
+}
+.stopIcon {
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  background: var(--alarm);
+}
 .attachIcon {
   font-family: var(--font-mono);
   font-size: 16px;

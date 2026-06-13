@@ -29,6 +29,10 @@ export interface Signal {
   alarm?: boolean;
   /** Agent id to light up on the canvas, if relevant. */
   agent?: string;
+  /** If set, the whisper becomes a link to this route — so a signal
+   *  like "3 actions waiting on your approval" is one tap from the
+   *  thing it's about, not just a notice. */
+  route?: string;
 }
 
 const POLL_MS = 60_000;
@@ -43,7 +47,7 @@ export function useSignals() {
     let cancelled = false;
     async function pull() {
       try {
-        const [state, cost, email, finance] = await Promise.all([
+        const [state, cost, email, finance, approvals] = await Promise.all([
           safeJson<{
             degraded?: boolean;
             agents?: { id: string; status: string; reachable: boolean }[];
@@ -66,10 +70,31 @@ export function useSignals() {
               };
             };
           }>("/api/agent/finance"),
+          safeJson<{ approvals?: unknown[] }>("/api/approvals"),
         ]);
         if (cancelled) return;
 
         const out: Signal[] = [];
+
+        // 0. Pending approvals → ALARM, highest priority + clickable.
+        // This is the trust gate: a pending approval means Astra is
+        // STUCK, unable to act until Kunal says yes/no. It was
+        // previously undiscoverable unless he opened /approvals by
+        // URL (audit 2026-06-13) — now it whispers + chimes + links.
+        const pendingApprovals = Array.isArray(approvals?.approvals)
+          ? approvals.approvals.length
+          : 0;
+        if (pendingApprovals > 0) {
+          out.push({
+            id: "approvals-pending",
+            text:
+              pendingApprovals === 1
+                ? `1 action is waiting on your approval.`
+                : `${pendingApprovals} actions are waiting on your approval.`,
+            alarm: true,
+            route: "/approvals",
+          });
+        }
 
         // 1. Core agent down → alarm
         if (state?.agents) {

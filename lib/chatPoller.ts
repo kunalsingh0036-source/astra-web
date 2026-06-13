@@ -110,11 +110,15 @@ interface PollResponse {
 
 const DEFAULT_POLL_MS = 500;
 const DEFAULT_MAX_DURATION_MS = 10 * 60 * 1000; // 10 min
-// Adaptive backoff cap. After ~6 consecutive empty polls (~10s of
-// idle), we throttle to one poll per 5s. Snaps back to base on the
-// next batch of events. Saves ~10× DB load when the agent is
-// thinking but not emitting (e.g. waiting on a slow tool).
-const DEFAULT_MAX_BACKOFF_MS = 5_000;
+// Adaptive backoff cap. During a silent thinking stretch (model
+// running but emitting nothing) we throttle the poll. The cap also
+// bounds the WORST-CASE delay before the user sees the first text
+// after that silence ends — so it's a responsiveness knob, not just
+// a DB-load one. At 5s it meant a tool-heavy turn could sit blank
+// for ~5s after the model resumed; for a single user the DB cost of
+// a tighter cap is negligible, so 2s — first text shows within ~2s
+// of the model resuming, worst case. Snaps to base on any event.
+const DEFAULT_MAX_BACKOFF_MS = 2_000;
 const BACKOFF_GROWTH = 1.5;
 
 export async function startChatPoll({

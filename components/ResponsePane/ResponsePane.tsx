@@ -137,6 +137,7 @@ export function ResponsePane() {
     tools,
     turnStartedAt,
     lastEventAt,
+    ask,
   } = useChat();
   const paneRef = useRef<HTMLElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
@@ -371,7 +372,16 @@ export function ResponsePane() {
           {approvals.length > 0 && (
             <div className={styles.approvals}>
               {approvals.map((ap) => (
-                <ApprovalChip key={ap.id} approval={ap} />
+                <ApprovalChip
+                  key={ap.id}
+                  approval={ap}
+                  onApproved={() => {
+                    // Auto-replay the request that was gated so Kunal
+                    // doesn't have to re-type it. The grant (one-shot
+                    // or standing) is consumed by this re-run.
+                    if (lastPrompt) void ask(lastPrompt);
+                  }}
+                />
               ))}
             </div>
           )}
@@ -389,12 +399,15 @@ export function ResponsePane() {
 
 
 /** Inline yes/no for an approval requested mid-turn. Resolving here
- *  hits the same /api/approvals path as the /approvals page; after
- *  approving, re-ask Astra to run the action (one-shot grant). */
+ *  hits the same /api/approvals path as the /approvals page. On
+ *  approve we fire onApproved() — which re-runs the original request
+ *  so Kunal never re-types it; the grant is consumed by the replay. */
 function ApprovalChip({
   approval,
+  onApproved,
 }: {
   approval: { id: number; tool_name: string; reason: string };
+  onApproved: () => void;
 }) {
   const [state, setState] = useState<"pending" | "approved" | "denied" | "error">(
     "pending",
@@ -408,6 +421,7 @@ function ApprovalChip({
       });
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       setState(decision);
+      if (decision === "approved") onApproved();
     } catch {
       setState("error");
     }
@@ -415,7 +429,7 @@ function ApprovalChip({
   if (state === "approved")
     return (
       <p className={styles.approvalResolved}>
-        ✓ approved #{approval.id} — ask astra to run it again
+        ✓ approved #{approval.id} — re-running…
       </p>
     );
   if (state === "denied")
