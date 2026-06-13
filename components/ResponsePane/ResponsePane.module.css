@@ -733,3 +733,20 @@
 .approvalChip button:hover { color: var(--glow-primary); }
 .approvalResolved { font-family: var(--font-mono); font-size: var(--text-label); color: var(--glow-muted); }
 .approvalErr { color: var(--alarm); }
+
+/* Read-aloud (TTS) toggle under a completed response. */
+.speakBtn {
+  margin-top: var(--space-2);
+  background: transparent;
+  border: none;
+  color: var(--glow-whisper);
+  font-family: var(--font-mono);
+  font-size: var(--text-label);
+  letter-spacing: var(--tracking-micro);
+  cursor: pointer;
+  padding: 2px 0;
+  transition: color var(--dur-small) var(--ease-out-soft);
+  -webkit-tap-highlight-color: transparent;
+}
+.speakBtn:hover { color: var(--glow-muted); }
+.speakBtn[aria-pressed="true"] { color: var(--glow-primary); }

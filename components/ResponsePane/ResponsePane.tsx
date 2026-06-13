@@ -5,6 +5,7 @@ import styles from "./ResponsePane.module.css";
 import { useChat, type ToolActivity } from "@/components/ChatProvider";
 import { ArtifactView } from "@/components/Artifacts/Artifact";
 import { MarkdownView } from "./MarkdownView";
+import { useSpeech } from "@/lib/useSpeech";
 
 
 /**
@@ -277,6 +278,7 @@ export function ResponsePane() {
             {turn.response && (
               <div className={styles.body}>
                 <MarkdownView text={turn.response} />
+                <SpeakButton text={turn.response} />
               </div>
             )}
             {turn.errorMessage && (
@@ -362,6 +364,7 @@ export function ResponsePane() {
           {response && (
             <div ref={bodyRef} className={styles.body}>
               <MarkdownView text={response} />
+              {!isStreaming && <SpeakButton text={response} />}
             </div>
           )}
 
@@ -444,5 +447,26 @@ function ApprovalChip({
       <button onClick={() => void resolve("denied")}>deny</button>
       {state === "error" && <span className={styles.approvalErr}>failed — see /approvals</span>}
     </div>
+  );
+}
+
+
+/** Tap to hear a response read aloud (browser TTS) — hands-free at
+ *  the desk or mid-task. Toggles: tap again to stop. Hidden where
+ *  speechSynthesis isn't available. */
+function SpeakButton({ text }: { text: string }) {
+  const { supported, speaking, speak } = useSpeech();
+  if (!supported) return null;
+  return (
+    <button
+      type="button"
+      className={styles.speakBtn}
+      aria-label={speaking ? "stop reading" : "read aloud"}
+      aria-pressed={speaking}
+      title={speaking ? "stop" : "read aloud"}
+      onClick={() => speak(text)}
+    >
+      {speaking ? "◼ stop" : "▶ listen"}
+    </button>
   );
 }
