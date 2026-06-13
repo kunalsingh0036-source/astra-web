@@ -1,58 +1,41 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
 import type { FleetState } from "./fleet";
+import { useSharedPoll } from "./pollResource";
 
 /**
- * useFleetState — client-side hook that polls /api/state.
+ * useFleetState — fleet health from /api/state.
  *
- * Behavior:
- *   - Fetches immediately on mount.
- *   - Re-polls every 10s.
- *   - Exposes `state`, `loading`, `error`, `lastUpdated`.
- *   - Cleans up on unmount (no zombie intervals on route change).
+ * Backed by useSharedPoll, which gives us two things the old per-hook
+ * setInterval didn't (UX audit 2026-06-13):
+ *   - Dedup: this hook mounts in BOTH Canvas and TopBar. They now share
+ *     ONE /api/state poll instead of opening two identical 10s loops.
+ *   - Visibility-gating: the poll pauses while the tab is hidden and
+ *     catches up the moment it's seen again.
  *
- * We deliberately don't use SWR/Tanstack here — it's one endpoint,
- * no cache-keying, and keeping the dep tree small matters.
+ * Still no SWR/Tanstack — useSharedPoll is the minimal primitive for
+ * exactly these needs and keeps the dep tree small.
  */
 
 const POLL_MS = 10_000;
 
-export function useFleetState() {
-  const [state, setState] = useState<FleetState | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const mountedRef = useRef(true);
+const FLEET_KEY = "fleet-state";
 
-  useEffect(() => {
-    mountedRef.current = true;
-
-    async function fetchOnce() {
-      try {
-        const res = await fetch("/api/state", { cache: "no-store" });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const body = (await res.json()) as FleetState;
-        if (mountedRef.current) {
-          setState(body);
-          setError(null);
-        }
-      } catch (e) {
-        if (mountedRef.current) {
-          setError(e instanceof Error ? e.message : "unknown error");
-        }
-      } finally {
-        if (mountedRef.current) setLoading(false);
-      }
-    }
-
-    fetchOnce();
-    const id = setInterval(fetchOnce, POLL_MS);
-
-    return () => {
-      mountedRef.current = false;
-      clearInterval(id);
-    };
-  }, []);
-
-  return { state, loading, error };
+async function fetchFleet(): Promise<FleetState> {
+  const res = await fetch("/api/state", { cache: "no-store" });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return (await res.json()) as FleetState;
 }
+
+export function useFleetState() {
+  const { value, loading, error } = useSharedPoll<FleetState>(
+    FLEET_KEY,
+    fetchFleet,
+    POLL_MS,
+  );
+  return { state: value, loading, error };
+}
+
+// Exported so other consumers (e.g. useSignals) can ride the SAME
+// shared /api/state poll instead of opening their own.
+export { FLEET_KEY, fetchFleet };

@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import styles from "./TopBar.module.css";
 import { HomeLink } from "@/components/HomeLink";
 import { useFleetState } from "@/lib/useFleetState";
+import { useSharedPoll } from "@/lib/pollResource";
 import { mergeFleet } from "@/lib/mergeFleet";
 import { useMode } from "@/components/ModeProvider";
 
@@ -28,7 +29,6 @@ export function TopBar() {
   const isOps = mode === "ops";
 
   const [now, setNow] = useState<Date | null>(null);
-  const [cost, setCost] = useState<CostSnap | null>(null);
   const { state } = useFleetState();
 
   useEffect(() => {
@@ -36,27 +36,6 @@ export function TopBar() {
     setNow(new Date());
     const id = setInterval(() => setNow(new Date()), 30_000);
     return () => clearInterval(id);
-  }, [isOps]);
-
-  useEffect(() => {
-    if (!isOps) return;
-    let cancelled = false;
-    async function pull() {
-      try {
-        const r = await fetch("/api/cost?days=30", { cache: "no-store" });
-        if (!r.ok) return;
-        const j = (await r.json()) as CostSnap;
-        if (!cancelled) setCost(j);
-      } catch {
-        /* ambient — cost is nice-to-have */
-      }
-    }
-    pull();
-    const id = setInterval(pull, 60_000);
-    return () => {
-      cancelled = true;
-      clearInterval(id);
-    };
   }, [isOps]);
 
   const agents = mergeFleet(state);
@@ -104,15 +83,7 @@ export function TopBar() {
         >
           sessions
         </Link>
-        {cost && (
-          <Link
-            href="/cost"
-            className={styles.cost}
-            title={`${cost.turns} turns · 30d ${fmtUsd(cost.total_cost_usd)}`}
-          >
-            today {fmtUsd(cost.today_cost_usd)}
-          </Link>
-        )}
+        <OpsCost />
       </div>
 
       <div className={styles.center}>
@@ -135,6 +106,36 @@ export function TopBar() {
         <span>fleet {statusLabel}</span>
       </div>
     </header>
+  );
+}
+
+async function fetchCost(): Promise<CostSnap> {
+  const r = await fetch("/api/cost?days=30", { cache: "no-store" });
+  if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  return (await r.json()) as CostSnap;
+}
+
+/**
+ * OpsCost — today's spend chip. Mounted ONLY in ops mode, so its
+ * shared poll exists only while the detail row is visible; it pauses
+ * when the tab is hidden (useSharedPoll's visibility-gating) and is
+ * torn down the moment you leave ops mode.
+ */
+function OpsCost() {
+  const { value: cost } = useSharedPoll<CostSnap>(
+    "topbar-cost",
+    fetchCost,
+    60_000,
+  );
+  if (!cost) return null;
+  return (
+    <Link
+      href="/cost"
+      className={styles.cost}
+      title={`${cost.turns} turns · 30d ${fmtUsd(cost.total_cost_usd)}`}
+    >
+      today {fmtUsd(cost.today_cost_usd)}
+    </Link>
   );
 }
 

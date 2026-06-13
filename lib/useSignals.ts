@@ -2,6 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import { playChime } from "@/lib/chimes";
+import { useSharedPoll } from "@/lib/pollResource";
+import { FLEET_KEY, fetchFleet } from "@/lib/useFleetState";
+import type { FleetState } from "@/lib/fleet";
 
 /**
  * useSignals — derives the canvas's ambient attention state.
@@ -37,42 +40,66 @@ export interface Signal {
 
 const POLL_MS = 60_000;
 
+const EXTRAS_KEY = "signals-extras";
+
+interface SignalExtras {
+  cost: { today_cost_usd?: number; today_turns?: number } | null;
+  email: { count?: number } | null;
+  finance: {
+    snapshot?: {
+      dashboard?: {
+        invoice_summary?: { overdue_amount?: string; overdue_count?: string };
+      };
+    };
+  } | null;
+  approvals: { approvals?: unknown[] } | null;
+}
+
+// The four non-fleet endpoints, fetched together. Shared + visibility-
+// gated via useSharedPoll; fleet health rides the SAME poll TopBar and
+// Canvas already run (FLEET_KEY) rather than a second /api/state hit.
+async function fetchExtras(): Promise<SignalExtras> {
+  const [cost, email, finance, approvals] = await Promise.all([
+    safeJson<SignalExtras["cost"]>("/api/cost?days=1"),
+    // Noise-filtered unanswered endpoint — the raw Gmail summary counts
+    // every bank alert / vendor pitch as "action_needed", which is why
+    // the canvas once whispered "69 emails need a reply" when the real
+    // count was 4.
+    safeJson<SignalExtras["email"]>("/api/email/unanswered?days=14"),
+    safeJson<SignalExtras["finance"]>("/api/agent/finance"),
+    safeJson<SignalExtras["approvals"]>("/api/approvals"),
+  ]);
+  return { cost, email, finance, approvals };
+}
+
 export function useSignals() {
   const [signals, setSignals] = useState<Signal[]>([]);
   // Track which alarm signal ids have already chimed so we don't
   // re-alert every poll while the condition persists.
   const chimedRef = useRef<Set<string>>(new Set());
 
+  // Fleet health: reuse the shared /api/state poll (no duplicate fetch).
+  const { value: state } = useSharedPoll<FleetState>(
+    FLEET_KEY,
+    fetchFleet,
+    10_000,
+  );
+  // The other four endpoints, on their own shared 60s poll.
+  const { value: extras } = useSharedPoll<SignalExtras>(
+    EXTRAS_KEY,
+    fetchExtras,
+    POLL_MS,
+  );
+
   useEffect(() => {
-    let cancelled = false;
-    async function pull() {
+    // Re-derive whenever either source updates. Pure transform of the
+    // latest snapshots + the chime side-effect — no fetching here.
+    {
       try {
-        const [state, cost, email, finance, approvals] = await Promise.all([
-          safeJson<{
-            degraded?: boolean;
-            agents?: { id: string; status: string; reachable: boolean }[];
-          }>("/api/state"),
-          safeJson<{ today_cost_usd?: number; today_turns?: number }>(
-            "/api/cost?days=1",
-          ),
-          // Use the noise-filtered unanswered endpoint — the raw Gmail
-          // summary counts every bank alert / vendor pitch as
-          // "action_needed", which is why the canvas was whispering
-          // "69 emails need a reply" when the real count was 4.
-          safeJson<{ count?: number }>("/api/email/unanswered?days=14"),
-          safeJson<{
-            snapshot?: {
-              dashboard?: {
-                invoice_summary?: {
-                  overdue_amount?: string;
-                  overdue_count?: string;
-                };
-              };
-            };
-          }>("/api/agent/finance"),
-          safeJson<{ approvals?: unknown[] }>("/api/approvals"),
-        ]);
-        if (cancelled) return;
+        const cost = extras?.cost ?? null;
+        const email = extras?.email ?? null;
+        const finance = extras?.finance ?? null;
+        const approvals = extras?.approvals ?? null;
 
         const out: Signal[] = [];
 
@@ -175,13 +202,9 @@ export function useSignals() {
         /* silent — ambient layer must not error the canvas */
       }
     }
-    pull();
-    const id = setInterval(pull, POLL_MS);
-    return () => {
-      cancelled = true;
-      clearInterval(id);
-    };
-  }, []);
+    // Depends on the two shared snapshots; the polling itself (and its
+    // visibility-gating) lives in useSharedPoll.
+  }, [state, extras]);
 
   return signals;
 }

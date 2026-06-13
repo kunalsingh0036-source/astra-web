@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import { memo } from "react";
 import type { ComponentProps, ReactNode } from "react";
 import ReactMarkdown from "react-markdown";
+import type { Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 
 /**
@@ -41,121 +43,134 @@ function isInternal(href: string | undefined): boolean {
   return href.startsWith("/") && !href.startsWith("//");
 }
 
-export function MarkdownView({ text }: MarkdownViewProps) {
+// Component map hoisted to a module constant. Previously this object
+// literal was rebuilt on every render, handing react-markdown a fresh
+// renderer config each time and defeating any internal memoization.
+// It's pure (no per-instance closure), so it lives here once.
+const MD_COMPONENTS: Components = {
+  // ── Block-level structure ──────────────────────────
+  p: ({ children }: ComponentProps<"p">) => (
+    <p className="resPara">{children}</p>
+  ),
+  h1: ({ children }: ComponentProps<"h1">) => (
+    <h1 className="resHeading1">{children}</h1>
+  ),
+  h2: ({ children }: ComponentProps<"h2">) => (
+    <h2 className="resHeading2">{children}</h2>
+  ),
+  // h3, h4, h5, h6 all collapse to resHeading3 — the design system
+  // has only three weights, deeper sections share the smallest
+  // mono-label treatment.
+  h3: ({ children }: ComponentProps<"h3">) => (
+    <h3 className="resHeading3">{children}</h3>
+  ),
+  h4: ({ children }: ComponentProps<"h4">) => (
+    <h4 className="resHeading3">{children}</h4>
+  ),
+  h5: ({ children }: ComponentProps<"h5">) => (
+    <h5 className="resHeading3">{children}</h5>
+  ),
+  h6: ({ children }: ComponentProps<"h6">) => (
+    <h6 className="resHeading3">{children}</h6>
+  ),
+  ul: ({ children }: ComponentProps<"ul">) => (
+    <ul className="resList">{children}</ul>
+  ),
+  ol: ({ children }: ComponentProps<"ol">) => (
+    <ol className="resList resListOrdered">{children}</ol>
+  ),
+  li: ({ children }: ComponentProps<"li">) => <li>{children}</li>,
+  blockquote: ({ children }: ComponentProps<"blockquote">) => (
+    <blockquote className="resBlockquote">{children}</blockquote>
+  ),
+  hr: () => <hr className="resHr" />,
+  // ── Code ───────────────────────────────────────────
+  // react-markdown 9.x: `code` renders both inline AND block code.
+  // The `inline` prop was removed; we detect block code by the
+  // presence of a className (language-*). Cleanest: className presence.
+  code: ({
+    className,
+    children,
+    ...props
+  }: ComponentProps<"code"> & { className?: string }) => {
+    const isBlock = !!className;
+    if (isBlock) {
+      return (
+        <code className={className} {...props}>
+          {children}
+        </code>
+      );
+    }
+    return <code {...props}>{children}</code>;
+  },
+  pre: ({ children }: ComponentProps<"pre">) => (
+    <pre className="resPre">{children}</pre>
+  ),
+  // ── Tables (via remark-gfm) ────────────────────────
+  // Wrapped in a scrollable div so wide tables don't blow out the chat
+  // pane on narrow viewports. Same shape as the existing emit_table
+  // artifact's table.
+  table: ({ children }: ComponentProps<"table">) => (
+    <div className="resTableWrap">
+      <table className="resTable">{children}</table>
+    </div>
+  ),
+  // ── Inline ─────────────────────────────────────────
+  a: ({ href, children, ...props }: ComponentProps<"a">) => {
+    // Drop unsafe schemes silently — render as plain text.
+    if (
+      href &&
+      !href.startsWith("/") &&
+      !href.startsWith("http://") &&
+      !href.startsWith("https://") &&
+      !href.startsWith("mailto:") &&
+      !href.startsWith("tel:")
+    ) {
+      return <span>{children}</span>;
+    }
+    if (isInternal(href)) {
+      return <Link href={href!}>{children}</Link>;
+    }
+    return (
+      <a href={href} target="_blank" rel="noreferrer" {...props}>
+        {children}
+      </a>
+    );
+  },
+  strong: ({ children }: ComponentProps<"strong">) => (
+    <strong>{children}</strong>
+  ),
+  em: ({ children }: ComponentProps<"em">) => <em>{children}</em>,
+  del: ({ children }: ComponentProps<"del">) => <del>{children}</del>,
+  // Images: render with the existing img styling. We don't restrict to
+  // https here — the agent only emits images it generated/fetched. For
+  // unknown-source images we'd want a stricter check.
+  img: ({ src, alt }: ComponentProps<"img">) =>
+    src ? (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img src={src as string} alt={alt || ""} className="resImg" />
+    ) : null,
+};
+
+const REMARK_PLUGINS = [remarkGfm];
+
+/**
+ * Memoized on `text`. During streaming the in-flight message re-parses
+ * per delta (its text genuinely changes) — but every OTHER MarkdownView
+ * on screen (all finished history messages) now skips the full
+ * react-markdown re-parse when an unrelated re-render fires. Before this
+ * memo, an ambient poll tick or a sibling state change re-parsed every
+ * rendered message on the page. (UX audit 2026-06-13.)
+ */
+export const MarkdownView = memo(function MarkdownView({
+  text,
+}: MarkdownViewProps) {
   return (
-    <ReactMarkdown
-      remarkPlugins={[remarkGfm]}
-      components={{
-        // ── Block-level structure ──────────────────────────
-        p: ({ children }: ComponentProps<"p">) => (
-          <p className="resPara">{children}</p>
-        ),
-        h1: ({ children }: ComponentProps<"h1">) => (
-          <h1 className="resHeading1">{children}</h1>
-        ),
-        h2: ({ children }: ComponentProps<"h2">) => (
-          <h2 className="resHeading2">{children}</h2>
-        ),
-        // h3, h4, h5, h6 all collapse to resHeading3 — the design
-        // system has only three weights, deeper sections share the
-        // smallest mono-label treatment.
-        h3: ({ children }: ComponentProps<"h3">) => (
-          <h3 className="resHeading3">{children}</h3>
-        ),
-        h4: ({ children }: ComponentProps<"h4">) => (
-          <h4 className="resHeading3">{children}</h4>
-        ),
-        h5: ({ children }: ComponentProps<"h5">) => (
-          <h5 className="resHeading3">{children}</h5>
-        ),
-        h6: ({ children }: ComponentProps<"h6">) => (
-          <h6 className="resHeading3">{children}</h6>
-        ),
-        ul: ({ children }: ComponentProps<"ul">) => (
-          <ul className="resList">{children}</ul>
-        ),
-        ol: ({ children }: ComponentProps<"ol">) => (
-          <ol className="resList resListOrdered">{children}</ol>
-        ),
-        li: ({ children }: ComponentProps<"li">) => <li>{children}</li>,
-        blockquote: ({ children }: ComponentProps<"blockquote">) => (
-          <blockquote className="resBlockquote">{children}</blockquote>
-        ),
-        hr: () => <hr className="resHr" />,
-        // ── Code ───────────────────────────────────────────
-        // react-markdown 9.x: `code` renders both inline AND block
-        // code. The `inline` prop was removed; we detect block code
-        // by the presence of a className (language-*) OR by checking
-        // if the parent is <pre>. Cleanest: use className presence.
-        code: ({
-          className,
-          children,
-          ...props
-        }: ComponentProps<"code"> & { className?: string }) => {
-          const isBlock = !!className;
-          if (isBlock) {
-            return (
-              <code className={className} {...props}>
-                {children}
-              </code>
-            );
-          }
-          return <code {...props}>{children}</code>;
-        },
-        pre: ({ children }: ComponentProps<"pre">) => (
-          <pre className="resPre">{children}</pre>
-        ),
-        // ── Tables (via remark-gfm) ────────────────────────
-        // Wrapped in a scrollable div so wide tables don't blow out
-        // the chat pane on narrow viewports. Same shape as the
-        // existing emit_table artifact's table.
-        table: ({ children }: ComponentProps<"table">) => (
-          <div className="resTableWrap">
-            <table className="resTable">{children}</table>
-          </div>
-        ),
-        // ── Inline ─────────────────────────────────────────
-        a: ({ href, children, ...props }: ComponentProps<"a">) => {
-          // Drop unsafe schemes silently — render as plain text.
-          if (
-            href &&
-            !href.startsWith("/") &&
-            !href.startsWith("http://") &&
-            !href.startsWith("https://") &&
-            !href.startsWith("mailto:") &&
-            !href.startsWith("tel:")
-          ) {
-            return <span>{children}</span>;
-          }
-          if (isInternal(href)) {
-            return <Link href={href!}>{children}</Link>;
-          }
-          return (
-            <a href={href} target="_blank" rel="noreferrer" {...props}>
-              {children}
-            </a>
-          );
-        },
-        strong: ({ children }: ComponentProps<"strong">) => (
-          <strong>{children}</strong>
-        ),
-        em: ({ children }: ComponentProps<"em">) => <em>{children}</em>,
-        del: ({ children }: ComponentProps<"del">) => <del>{children}</del>,
-        // Images: render with the existing img styling. We don't
-        // restrict to https here — the agent only emits images
-        // it generated/fetched. For unknown-source images we'd
-        // want a stricter check.
-        img: ({ src, alt }: ComponentProps<"img">) =>
-          src ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={src as string} alt={alt || ""} className="resImg" />
-          ) : null,
-      }}
-    >
+    <ReactMarkdown remarkPlugins={REMARK_PLUGINS} components={MD_COMPONENTS}>
       {text}
     </ReactMarkdown>
   );
-}
+});
 
 /**
  * Tiny re-export so callers don't need to import react-markdown
