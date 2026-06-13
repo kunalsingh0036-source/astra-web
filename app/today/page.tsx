@@ -132,7 +132,7 @@ export default function TodayPage() {
                 week {fmtUsd(cost.week_cost_usd)}
               </>
             ) : (
-              "loading…"
+              <span className="loadingPulse">loading…</span>
             )}
           </div>
         </Link>
@@ -191,7 +191,11 @@ export default function TodayPage() {
             {whatsapp ? String(whatsapp.conversations ?? 0) : "—"}
           </div>
           <div className={styles.cardSub}>
-            {whatsapp ? `${whatsapp.contacts ?? 0} contacts · gateway live` : "loading…"}
+            {whatsapp ? (
+              `${whatsapp.contacts ?? 0} contacts · gateway live`
+            ) : (
+              <span className="loadingPulse">loading…</span>
+            )}
           </div>
         </Link>
 
@@ -207,7 +211,7 @@ export default function TodayPage() {
                 {audit.allowed} allow · {audit.denied} deny · {audit.asked} ask
               </>
             ) : (
-              "loading…"
+              <span className="loadingPulse">loading…</span>
             )}
           </div>
         </Link>
