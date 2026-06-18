@@ -127,6 +127,32 @@ function matchSessionsNavCommand(value: string): boolean {
 }
 
 /**
+ * Recognize phrases that should navigate to Settings — the ONLY way to
+ * reach Settings on mobile, where ⌘K (the command palette) and a mouse
+ * don't exist and there's no settings button in the chrome. Notification
+ * phrasing routes straight to the notifications sub-page (the common
+ * "turn on notifications" intent); generic "settings" goes to the hub.
+ * Returns the target route, or null if it's not a settings nav command.
+ */
+const SETTINGS_NOTIF_PATTERNS: Array<RegExp> = [
+  /^\s*(open|go\s+to|show|turn\s+on|enable|manage)\s+(?:my\s+|the\s+)?notifications?\s*(settings?|alerts?)?\s*\.?\s*$/i,
+  /^\s*notifications?\s+(settings?|alerts?)\s*\.?\s*$/i,
+  /^\s*notifications?\s*\.?\s*$/i,
+];
+const SETTINGS_PAGE_PATTERNS: Array<RegExp> = [
+  /^\s*(open|go\s+to|show|see|view)\s+(?:my\s+|the\s+)?settings\s*\.?\s*$/i,
+  /^\s*settings\s*\.?\s*$/i,
+];
+function matchSettingsNavCommand(value: string): string | null {
+  const v = value.trim();
+  if (!v) return null;
+  if (/^(what|how|why|when|does|can|is|are)\b/i.test(v)) return null;
+  if (SETTINGS_NOTIF_PATTERNS.some((r) => r.test(v))) return "/settings/notifications";
+  if (SETTINGS_PAGE_PATTERNS.some((r) => r.test(v))) return "/settings";
+  return null;
+}
+
+/**
  * Recognize "expand bridge to <path>" / "give astra access to <path>" /
  * "add <path> to the bridge" — natural-language shortcuts that update
  * the active bridge token's allowed_paths via /api/bridge/expand.
@@ -646,6 +672,14 @@ export function InputLine() {
     // "my chats", etc. — pure navigation, no agent involved.
     if (matchSessionsNavCommand(prompt)) {
       router.push("/sessions");
+      return;
+    }
+    // Settings/notifications: the only mobile-reachable path to Settings
+    // (no ⌘K, no settings button on phone). "settings" → hub,
+    // "turn on notifications" → the notifications sub-page.
+    const settingsRoute = matchSettingsNavCommand(prompt);
+    if (settingsRoute) {
+      router.push(settingsRoute);
       return;
     }
     // Recent-turns shortcut: queries like "pull up our last conversation"
