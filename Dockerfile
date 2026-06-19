@@ -31,8 +31,16 @@ ENV NEXT_TELEMETRY_DISABLED=1
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# next build needs at least the public env vars at build time
-# (NEXT_PUBLIC_*). Pass them through Railway's build-time env.
+# NEXT_PUBLIC_* are inlined at BUILD time, not read at runtime. In a
+# Dockerfile build, `RUN` steps do NOT see Railway's service variables
+# unless each is declared as an ARG (Railway passes service vars as
+# build args). Without this, `next build` baked an EMPTY
+# NEXT_PUBLIC_VAPID_PUBLIC_KEY → the PWA showed "VAPID public key not
+# configured" and web push could never subscribe. Declare it, promote
+# to ENV so `next build` inlines the real value. Add any future
+# NEXT_PUBLIC_* here too.
+ARG NEXT_PUBLIC_VAPID_PUBLIC_KEY=""
+ENV NEXT_PUBLIC_VAPID_PUBLIC_KEY=$NEXT_PUBLIC_VAPID_PUBLIC_KEY
 RUN npm run build
 
 # ── 3. runner ────────────────────────────────────────────────────
