@@ -40,6 +40,25 @@ function urlBase64ToUint8Array(base64: string): Uint8Array {
   return out;
 }
 
+function _bytesEqual(a: Uint8Array, b: Uint8Array): boolean {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
+  return true;
+}
+
+/**
+ * True if `sub` was created with a different applicationServerKey than
+ * the current VAPID public key — meaning our signed pushes would be
+ * rejected (the stale-subscription / key-rotation case).
+ */
+async function _isStaleKey(sub: PushSubscription): Promise<boolean> {
+  if (!VAPID_PUBLIC_KEY) return false; // nothing to compare against
+  const existing = sub.options?.applicationServerKey;
+  if (!existing) return true; // no recorded key → can't match ours
+  const current = urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
+  return !_bytesEqual(new Uint8Array(existing as ArrayBuffer), current);
+}
+
 export function usePushSubscribe(): Hook {
   const [state, setState] = useState<State>("loading");
   const [error, setError] = useState<string | null>(null);
@@ -66,6 +85,24 @@ export function usePushSubscribe(): Hook {
         const sub = await reg.pushManager.getSubscription();
         if (cancelled) return;
         if (sub) {
+          // Reconcile with the CURRENT VAPID key. A subscription made
+          // with a different applicationServerKey — before the key was
+          // configured, or after a rotation — can never receive our
+          // pushes: the server signs with the new key and Apple/Google
+          // reject the mismatch (and the server marks it "gone"). The
+          // browser still reports it as a live subscription, so without
+          // this the page shows "send test" (→ "0 of 0") and never
+          // offers re-enable. Detect the stale key and rotate it out so
+          // the user just re-enables cleanly.
+          if (await _isStaleKey(sub)) {
+            try {
+              await sub.unsubscribe();
+            } catch {
+              /* best effort */
+            }
+            if (!cancelled) setState("not-subscribed");
+            return;
+          }
           setState("subscribed");
         } else if (Notification.permission === "denied") {
           setState("denied");
