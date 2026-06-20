@@ -49,6 +49,7 @@ const ACTIONS: ActionSeed[] = [
   // that BLOCKS Astra from acting, and was previously reachable only
   // by typing the URL (audit 2026-06-13).
   { title: "Approvals", meta: "actions waiting on your yes/no", route: "/approvals" },
+  { title: "Replies", meta: "drafted replies · edit & send", route: "/replies" },
   { title: "Email", meta: "triage · unanswered · staged drafts", route: "/email" },
   { title: "Tonight", meta: "evening catch-up · training review", route: "/tonight" },
   { title: "Tasks", meta: "to-do · what I'm tracking", route: "/tasks" },
