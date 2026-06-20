@@ -50,6 +50,7 @@ const ACTIONS: ActionSeed[] = [
   // by typing the URL (audit 2026-06-13).
   { title: "Approvals", meta: "actions waiting on your yes/no", route: "/approvals" },
   { title: "Replies", meta: "drafted replies · edit & send", route: "/replies" },
+  { title: "Content", meta: "LinkedIn drafts · edit & ship", route: "/content" },
   { title: "Email", meta: "triage · unanswered · staged drafts", route: "/email" },
   { title: "Tonight", meta: "evening catch-up · training review", route: "/tonight" },
   { title: "Tasks", meta: "to-do · what I'm tracking", route: "/tasks" },
